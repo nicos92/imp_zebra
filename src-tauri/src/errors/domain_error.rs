@@ -1,0 +1,22 @@
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum DomainError {
+    #[error("Invalid barcode: {code}")]
+    InvalidBarcode { code: String },
+
+    #[error("Sequence overflow: value {value} exceeds maximum")]
+    SequenceOverflow { value: u64 },
+
+    #[error("Invalid quantity: {value}")]
+    InvalidQuantity { value: u64 },
+
+    #[error("Invalid printer config: {field} - {message}")]
+    InvalidPrinterConfig { field: String, message: String },
+
+    #[error("Printer not configured")]
+    PrinterNotConfigured,
+
+    #[error("Database error: {0}")]
+    Database(String),
+}

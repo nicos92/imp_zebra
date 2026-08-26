@@ -1,0 +1,33 @@
+mod application;
+mod commands;
+mod domain;
+mod errors;
+mod infrastructure;
+mod state;
+
+pub use state::app_state::AppState;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::block_on(async {
+                infrastructure::database::connection::create_pool(&app_handle)
+                    .await
+                    .expect("Failed to create database pool");
+            });
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::printer_commands::get_printer_config,
+            commands::printer_commands::save_printer_config,
+            commands::printer_commands::test_printer_connection,
+            commands::print_commands::print_labels,
+            commands::print_commands::preview_label,
+            commands::print_commands::get_print_job,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
