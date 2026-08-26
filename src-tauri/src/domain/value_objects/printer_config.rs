@@ -118,6 +118,13 @@ impl PrinterConfig {
             });
         }
 
+        if !is_valid_ip(ip_address) {
+            return Err(DomainError::InvalidPrinterConfig {
+                field: "ip_address".to_string(),
+                message: format!("Invalid IP address format: {}", ip_address),
+            });
+        }
+
         if port == 0 {
             return Err(DomainError::InvalidPrinterConfig {
                 field: "port".to_string(),
@@ -137,6 +144,14 @@ impl PrinterConfig {
         let inches = self.label_height_mm / 25.4;
         (inches * self.dpi as f64 + 0.5) as u32
     }
+}
+
+fn is_valid_ip(ip: &str) -> bool {
+    let parts: Vec<&str> = ip.split('.').collect();
+    if parts.len() != 4 {
+        return false;
+    }
+    parts.iter().all(|p| p.parse::<u8>().is_ok())
 }
 
 #[cfg(test)]
@@ -220,5 +235,23 @@ mod tests {
         assert_eq!(ConnectionType::from_str("tcp").unwrap(), ConnectionType::Tcp);
         assert_eq!(ConnectionType::from_str("USB").unwrap(), ConnectionType::Usb);
         assert!(ConnectionType::from_str("invalid").is_err());
+    }
+
+    #[test]
+    fn test_invalid_ip_address() {
+        let result = PrinterConfig::new(
+            "Test", "Zebra", 203, 50.0, 50.0, 2,
+            ConnectionType::Tcp, "invalid-ip", 9100,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_valid_ip_address() {
+        let result = PrinterConfig::new(
+            "Test", "Zebra", 203, 50.0, 50.0, 2,
+            ConnectionType::Tcp, "192.168.1.100", 9100,
+        );
+        assert!(result.is_ok());
     }
 }

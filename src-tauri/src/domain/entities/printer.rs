@@ -68,3 +68,85 @@ impl Printer {
         format!("{}:{}", self.ip_address, self.port)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::value_objects::printer_config::{ConnectionType, PrinterConfig};
+
+    fn valid_printer_config() -> PrinterConfig {
+        PrinterConfig::new(
+            "Test Printer",
+            "Zebra ZD421",
+            203,
+            50.0,
+            50.0,
+            2,
+            ConnectionType::Tcp,
+            "192.168.1.100",
+            9100,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn test_new_printer() {
+        let printer = Printer::new("printer-1", &valid_printer_config());
+        assert_eq!(printer.id, "printer-1");
+        assert_eq!(printer.name, "Test Printer");
+        assert_eq!(printer.model, "Zebra ZD421");
+        assert_eq!(printer.dpi, 203);
+        assert_eq!(printer.label_width_mm, 50.0);
+        assert_eq!(printer.label_height_mm, 50.0);
+        assert_eq!(printer.columns, 2);
+        assert_eq!(printer.connection_type, ConnectionType::Tcp);
+        assert_eq!(printer.ip_address, "192.168.1.100");
+        assert_eq!(printer.port, 9100);
+    }
+
+    #[test]
+    fn test_update_printer() {
+        let mut printer = Printer::new("printer-1", &valid_printer_config());
+        let new_config = PrinterConfig::new(
+            "Updated Printer",
+            "Zebra ZD421",
+            300,
+            100.0,
+            150.0,
+            1,
+            ConnectionType::Tcp,
+            "192.168.1.101",
+            9100,
+        )
+        .unwrap();
+
+        printer.update(&new_config);
+        assert_eq!(printer.name, "Updated Printer");
+        assert_eq!(printer.dpi, 300);
+        assert_eq!(printer.label_width_mm, 100.0);
+        assert_eq!(printer.label_height_mm, 150.0);
+        assert_eq!(printer.columns, 1);
+        assert_eq!(printer.ip_address, "192.168.1.101");
+    }
+
+    #[test]
+    fn test_to_config() {
+        let printer = Printer::new("printer-1", &valid_printer_config());
+        let config = printer.to_config();
+        assert_eq!(config.name, "Test Printer");
+        assert_eq!(config.model, "Zebra ZD421");
+        assert_eq!(config.dpi, 203);
+        assert_eq!(config.label_width_mm, 50.0);
+        assert_eq!(config.label_height_mm, 50.0);
+        assert_eq!(config.columns, 2);
+        assert_eq!(config.connection_type, ConnectionType::Tcp);
+        assert_eq!(config.ip_address, "192.168.1.100");
+        assert_eq!(config.port, 9100);
+    }
+
+    #[test]
+    fn test_address() {
+        let printer = Printer::new("printer-1", &valid_printer_config());
+        assert_eq!(printer.address(), "192.168.1.100:9100");
+    }
+}

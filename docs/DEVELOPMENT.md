@@ -60,7 +60,7 @@ Migrations run automatically at app startup. See [DATABASE.md](./DATABASE.md).
 ### Phase 1 — Scaffolding ✅ COMPLETED
 Create project, frontend, backend, folder structure, initial configuration.
 
-### Phase 2 — Domain
+### Phase 2 — Domain ✅ COMPLETED
 Implement Barcode, Sequence, PrintJob, Printer config with tests.
 
 ### Phase 3 — SQLite
@@ -209,3 +209,58 @@ cargo test: 34/34 passing
 3. ZPL generator produces valid ZPL II with Code 128
 4. Label layout calculates correct dot positions for 203 DPI
 5. Error types propagate correctly through layers
+
+## 12. Phase 2 Implementation Summary
+
+### Date: 2026-08-26
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+**Architectural Fixes:**
+- Added `InvalidStateTransition` and `InvalidPrintJobStatus` error variants to `DomainError`
+- Added state transition guards to `PrintJob` entity (Pending→Printing→Completed/Failed)
+- Fixed `PrintJobStatus::from_str` to return `Result` instead of `Option`
+- Added IPv4 format validation to `PrinterConfig`
+- Updated `sqlite_print_job_repository` to handle new `Result` type from `from_str`
+
+### Tests Added (53 total, +19 from Phase 1)
+
+| Module | Tests | Status |
+|--------|-------|--------|
+| `domain::entities::sequence` | 12 tests | ✅ |
+| `domain::value_objects::barcode` | 5 tests | ✅ |
+| `domain::value_objects::printer_config` | 10 tests (+2 IP validation) | ✅ |
+| `domain::services::label_service` | 2 tests | ✅ |
+| `domain::services::sequence_service` | 3 tests (+3 new) | ✅ |
+| `domain::entities::printer` | 4 tests (+4 new) | ✅ |
+| `domain::entities::print_job` | 10 tests (+10 new) | ✅ |
+| `infrastructure::zpl::generator` | 3 tests | ✅ |
+| `infrastructure::zpl::label_layout` | 4 tests | ✅ |
+| **Total** | **53 tests** | **All passing** |
+
+### Compilation
+
+```
+cargo check: OK
+cargo test: 53/53 passing
+```
+
+### New Error Variants
+
+```rust
+#[error("Invalid state transition from {from} to {to}")]
+InvalidStateTransition { from: String, to: String },
+
+#[error("Invalid print job status: {0}")]
+InvalidPrintJobStatus(String),
+```
+
+### Key decisions verified
+
+1. State transitions are properly guarded (Pending→Printing→Completed/Failed)
+2. Invalid transitions return descriptive errors
+3. IPv4 format validation prevents invalid IP addresses
+4. SequenceService correctly persists changes to repository
+5. All entity methods return proper error types

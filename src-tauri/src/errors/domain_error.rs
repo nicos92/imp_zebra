@@ -19,4 +19,10 @@ pub enum DomainError {
 
     #[error("Database error: {0}")]
     Database(String),
+
+    #[error("Invalid state transition from {from} to {to}")]
+    InvalidStateTransition { from: String, to: String },
+
+    #[error("Invalid print job status: {0}")]
+    InvalidPrintJobStatus(String),
 }
