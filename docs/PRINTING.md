@@ -159,19 +159,21 @@ See [ZPL.md](./ZPL.md) for ZPL command details.
 
 ## 7. Transport
 
-The TCP transport is implemented in `TcpPrinterTransport`:
+The printer transport is abstracted behind the `PrinterTransport` trait in `infrastructure/printer/printer_transport.rs`:
 
 ```rust
 #[async_trait]
 pub trait PrinterTransport: Send + Sync {
-    async fn send(&self, data: &[u8]) -> Result<(), PrinterError>;
-    async fn is_connected(&self) -> bool;
+    async fn send(&self, data: &[u8]) -> Result<(), InfrastructureError>;
+    async fn test_connection(&self) -> Result<(), InfrastructureError>;
 }
 ```
 
-The TCP implementation connects to `ip:port` (default 9100) and writes raw bytes. No protocol overhead, no handshake — just raw TCP socket to the Zebra printer.
+The TCP implementation `TcpPrinterTransport` connects to `ip:port` (default 9100) and writes raw bytes. No protocol overhead, no handshake — just raw TCP socket to the Zebra printer.
 
-**Timeout:** Configurable, default 5 seconds for connection, 30 seconds for send.
+**Timeout:** Configurable via `new(ip, port)` (5s connect, 30s write) or `new_with_timeouts(...)` for tests. Errors map to `InfrastructureError::PrinterConnection` (connect/write failures) and `InfrastructureError::PrinterTimeout` (timeouts).
+
+`ZebraPrinter` depends on `Arc<dyn PrinterTransport>`, injecting `TcpPrinterTransport` by default. Tests use a fake transport, so no physical Zebra is required.
 
 ## 8. Validation
 

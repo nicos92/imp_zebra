@@ -69,7 +69,7 @@ Database connection, migrations, repositories, transactions.
 ### Phase 4 — ZPL ✅ COMPLETED
 ZplGenerator, LabelLayout, Code 128, two-column layout with tests.
 
-### Phase 5 — Printer Transport
+### Phase 5 — Printer Transport ✅ COMPLETED
 PrinterTransport trait, TcpPrinterTransport, connection testing.
 
 ### Phase 6 — Application Layer
@@ -378,3 +378,74 @@ cargo clippy: no new warnings
 2. Distribution rule (odd→left, even→right) centralized in `LabelService`
 3. Odd quantities produce no phantom ZPL for the empty position
 4. Refactor produces identical ZPL output; no behavior change
+
+## 15. Phase 5 Implementation Summary
+
+### Date: 2026-08-27
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+**`PrinterTransport` trait (dependency inversion):**
+- New `infrastructure/printer/printer_transport.rs` with async trait:
+  ```rust
+  #[async_trait]
+  pub trait PrinterTransport: Send + Sync {
+      async fn send(&self, data: &[u8]) -> Result<(), InfrastructureError>;
+      async fn test_connection(&self) -> Result<(), InfrastructureError>;
+  }
+  ```
+- Reuses `InfrastructureError` (no new `PrinterError` — no overengineering rule §40)
+- Enables testing without a physical Zebra and swapping TCP→USB/Serial later (acceptance #19, #20)
+
+**`TcpPrinterTransport` (rename of `TcpTransport`):**
+- Implements `PrinterTransport` with TCP socket (connect + write_all + flush) with timeouts
+- `new(ip, port)` defaults: 5s connect, 30s write
+- `new_with_timeouts(...)` added for testability
+- Error mapping: connect/write errors → `PrinterConnection`, timeouts → `PrinterTimeout`
+
+**`ZebraPrinter` now depends on `Arc<dyn PrinterTransport>`:**
+- `new(printer)` builds a `TcpPrinterTransport` by default
+- `with_transport` (test-only) injects a `FakePrinterTransport`
+- `send_zpl` / `test_connection` delegate through the trait
+
+**Consumer updates:**
+- `TestPrinter` imports `TcpPrinterTransport` (rename) + `PrinterTransport` trait
+
+### Tests Added (74 total, +6 from Phase 4)
+
+| Module | New Tests | Status |
+|--------|-----------|--------|
+| All Phase 1-4 modules | 68 tests | ✅ |
+| `tcp_transport.rs` | `test_send_to_listener`, `test_connection_refused`, `test_timeout_mapping` | ✅ |
+| `zebra_printer.rs` | `test_send_zpl_ok`, `test_send_zpl_error`, `test_test_connection_ok` | ✅ |
+| **Total** | **74 tests** | **All passing** |
+
+### Verification sequence (as required)
+
+1. `cargo check` ✅
+2. `cargo fmt` + `cargo clippy` ✅ (no errors)
+3. `cargo test` ✅ (74/74, 2.04s)
+4. `cargo check` (repeat) ✅
+5. `cargo fmt` + `cargo clippy` (repeat) ✅
+6. No new warnings beyond the pre-existing unused-code set
+
+### Files Modified/Created
+
+| File | Change |
+|------|--------|
+| `docs/PHASE5_PLAN.md` | **New** — implementation plan |
+| `src/infrastructure/printer/printer_transport.rs` | **New** — `PrinterTransport` trait |
+| `src/infrastructure/printer/tcp_transport.rs` | rename `TcpPrinterTransport`, impl trait, `new_with_timeouts`, +tests |
+| `src/infrastructure/printer/zebra_printer.rs` | `Arc<dyn PrinterTransport>`, `with_transport`, fake tests |
+| `src/infrastructure/printer/mod.rs` | register `printer_transport` |
+| `src/application/use_cases/test_printer.rs` | rename `TcpTransport`→`TcpPrinterTransport` + trait import |
+| `docs/DEVELOPMENT.md` | this summary + phase marked complete |
+
+### Key decisions verified
+
+1. `PrinterTransport` trait established the abstraction boundary in infrastructure (§13/§43)
+2. Reused `InfrastructureError` instead of adding a `PrinterError` layer (§40 no overengineering)
+3. `test_connection` retained over `is_connected(): bool` (more informative, aligned with `TestPrinter`)
+4. Only the application use-case DI was deferred to Phase 6 (per scope decision); infrastructure + `ZebraPrinter` fully abstracted now

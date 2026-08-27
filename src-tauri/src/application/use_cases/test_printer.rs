@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use crate::domain::repositories::printer_repository::PrinterRepository;
 use crate::errors::application_error::ApplicationError;
-use crate::infrastructure::printer::tcp_transport::TcpTransport;
+use crate::infrastructure::printer::printer_transport::PrinterTransport;
+use crate::infrastructure::printer::tcp_transport::TcpPrinterTransport;
 
 pub struct TestPrinter {
     printer_repository: Arc<dyn PrinterRepository>,
@@ -20,7 +21,7 @@ impl TestPrinter {
             .await?
             .ok_or(ApplicationError::PrinterNotConfigured)?;
 
-        let transport = TcpTransport::new(&printer.ip_address, printer.port);
+        let transport = TcpPrinterTransport::new(&printer.ip_address, printer.port);
         transport
             .test_connection()
             .await
