@@ -63,7 +63,7 @@ Create project, frontend, backend, folder structure, initial configuration.
 ### Phase 2 — Domain ✅ COMPLETED
 Implement Barcode, Sequence, PrintJob, Printer config with tests.
 
-### Phase 3 — SQLite
+### Phase 3 — SQLite ✅ COMPLETED
 Database connection, migrations, repositories, transactions.
 
 ### Phase 4 — ZPL
@@ -264,3 +264,63 @@ InvalidPrintJobStatus(String),
 3. IPv4 format validation prevents invalid IP addresses
 4. SequenceService correctly persists changes to repository
 5. All entity methods return proper error types
+
+## 13. Phase 3 Implementation Summary
+
+### Date: 2026-08-26
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+**Database / Migrations:**
+- Replaced hardcoded DDL in `migrations.rs` with SQLx migration runner `sqlx::migrate!("./migrations")`
+- Migration `.sql` file (`001_initial.sql`) now embedded at compile-time and executed at startup
+- Added `test_helpers.rs` — `create_test_pool()` for in-memory SQLite integration tests
+
+**Transactions (critical concurrency fix):**
+- Added `reserve_range()` to `SequenceRepository` trait
+- Implemented atomic sequence reservation in `sqlite_sequence_repository.rs` using `BEGIN IMMEDIATE`
+- SELECT → calculate → UPDATE happens inside a single transaction, preventing duplicate code ranges under concurrency
+- Updated `SequenceService::reserve_range()` to delegate atomicity to the repository
+
+### Tests Added (67 total, +14 from Phase 2)
+
+| Module | Tests | Status |
+|--------|-------|--------|
+| All Phase 1 + 2 modules | 53 tests | ✅ |
+| `infrastructure::database::migrations` | 1 test (migrations on empty DB) | ✅ |
+| `infrastructure::database::repositories::sqlite_sequence_repository` | 4 tests (get_initial, update, reserve, reserve_sequential) | ✅ |
+| `infrastructure::database::repositories::sqlite_printer_repository` | 5 tests (save+find, find_all, update, delete, find_nonexistent) | ✅ |
+| `infrastructure::database::repositories::sqlite_print_job_repository` | 4 tests (save+find, update_status, find_recent, find_recent_empty) | ✅ |
+| **Total** | **67 tests** | **All passing** |
+
+### Compilation
+
+```
+cargo check: OK (24 warnings - unused code, expected in early phases)
+cargo test: 67/67 passing
+```
+
+### Files Modified/Created
+
+| File | Change |
+|------|--------|
+| `docs/PHASE3_PLAN.md` | **New** — implementation plan |
+| `src-tauri/src/infrastructure/database/migrations.rs` | `sqlx::migrate!()` replaces hardcoded DDL + test |
+| `src-tauri/src/infrastructure/database/test_helpers.rs` | **New** — `create_test_pool()` |
+| `src-tauri/src/infrastructure/database/mod.rs` | Added `test_helpers` module |
+| `src-tauri/src/domain/repositories/sequence_repository.rs` | Added `reserve_range()` to trait |
+| `src-tauri/src/infrastructure/database/repositories/sqlite_sequence_repository.rs` | Implemented atomic `reserve_range()` + 4 tests |
+| `src-tauri/src/infrastructure/database/repositories/sqlite_printer_repository.rs` | Added 5 tests |
+| `src-tauri/src/infrastructure/database/repositories/sqlite_print_job_repository.rs` | Added 4 tests |
+| `src-tauri/src/domain/services/sequence_service.rs` | Delegate reserve atomicity to repo + updated fake |
+
+### Key decisions verified
+
+1. `sqlx::migrate!()` correctly embeds migration SQL at compile-time (path `./migrations`)
+2. `BEGIN IMMEDIATE` transaction ensures atomic sequence reservation
+3. In-memory SQLite (`sqlite::memory:`) with `max_connections(1)` works for integration tests
+4. Foreign key constraints enforce printer_id references
+5. Print job tests require creating a valid printer first (FK)
+6. Migration table seed produces `Z0000000` initial code

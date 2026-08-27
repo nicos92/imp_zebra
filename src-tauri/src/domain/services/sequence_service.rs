@@ -21,12 +21,21 @@ impl SequenceService {
         &self,
         quantity: u64,
     ) -> Result<(String, String, Vec<String>), DomainError> {
-        let mut sequence = self.get_current_sequence().await?;
-        let (start, end, codes) = sequence.reserve_range(quantity)?;
-        self.repository
-            .update_last_used_code(&sequence.last_used_code())
-            .await?;
+        let (start, end, _new_last) = self.repository.reserve_range(quantity).await?;
+        let codes = self.codes_for_range(&start, quantity)?;
         Ok((start, end, codes))
+    }
+
+    fn codes_for_range(&self, start: &str, quantity: u64) -> Result<Vec<String>, DomainError> {
+        let mut sequence = Sequence::from_code(start)?;
+        if quantity == 0 {
+            return Err(DomainError::InvalidQuantity { value: 0 });
+        }
+        let mut codes = Vec::with_capacity(quantity as usize);
+        for _ in 0..quantity {
+            codes.push(sequence.next());
+        }
+        Ok(codes)
     }
 
     pub async fn get_next_code(&self) -> Result<String, DomainError> {
@@ -65,6 +74,17 @@ mod tests {
         async fn update_last_used_code(&self, code: &str) -> Result<(), DomainError> {
             *self.last_used.lock().unwrap() = code.to_string();
             Ok(())
+        }
+
+        async fn reserve_range(
+            &self,
+            quantity: u64,
+        ) -> Result<(String, String, String), DomainError> {
+            let current = self.get_last_used_code().await?;
+            let mut seq = crate::domain::entities::sequence::Sequence::from_code(&current)?;
+            let (start, end, _) = seq.reserve_range(quantity)?;
+            self.update_last_used_code(&seq.last_used_code()).await?;
+            Ok((start, end, seq.last_used_code()))
         }
     }
 

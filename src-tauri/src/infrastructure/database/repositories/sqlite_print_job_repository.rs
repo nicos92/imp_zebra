@@ -112,3 +112,101 @@ impl PrintJobRepository for SqlitePrintJobRepository {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::repositories::printer_repository::PrinterRepository;
+    use crate::infrastructure::database::repositories::sqlite_printer_repository::SqlitePrinterRepository;
+
+    fn valid_job(id: &str, printer_id: &str, start: &str, end: &str, quantity: u64) -> PrintJob {
+        PrintJob::new(id, printer_id, start, end, quantity)
+    }
+
+    async fn create_printer(pool: &sqlx::sqlite::SqlitePool, id: &str) {
+        let config = crate::domain::value_objects::printer_config::PrinterConfig::new(
+            "Test Printer",
+            "Zebra ZD421",
+            203,
+            50.0,
+            50.0,
+            2,
+            crate::domain::value_objects::printer_config::ConnectionType::Tcp,
+            "192.168.1.100",
+            9100,
+        )
+        .unwrap();
+        let printer = crate::domain::entities::printer::Printer::new(id, &config);
+        SqlitePrinterRepository::new(pool.clone())
+            .save(&printer)
+            .await
+            .unwrap();
+    }
+
+    async fn repo() -> SqlitePrintJobRepository {
+        let pool = crate::infrastructure::database::test_helpers::create_test_pool().await;
+        create_printer(&pool, "printer-1").await;
+        SqlitePrintJobRepository::new(pool)
+    }
+
+    #[tokio::test]
+    async fn test_save_and_find_by_id() {
+        let repo = repo().await;
+        let job = valid_job("job-1", "printer-1", "Z0000001", "Z0000010", 10);
+
+        repo.save(&job).await.unwrap();
+
+        let found = repo.find_by_id("job-1").await.unwrap();
+        assert!(found.is_some());
+        let found = found.unwrap();
+        assert_eq!(found.id, "job-1");
+        assert_eq!(found.printer_id, "printer-1");
+        assert_eq!(found.start_code, "Z0000001");
+        assert_eq!(found.end_code, "Z0000010");
+        assert_eq!(found.quantity, 10);
+        assert_eq!(found.status, PrintJobStatus::Pending);
+    }
+
+    #[tokio::test]
+    async fn test_update_status() {
+        let repo = repo().await;
+        let job = valid_job("job-1", "printer-1", "Z0000001", "Z0000010", 10);
+        repo.save(&job).await.unwrap();
+
+        let completed_at = Some("2026-08-27T12:00:00Z");
+        repo.update_status("job-1", PrintJobStatus::Completed, completed_at)
+            .await
+            .unwrap();
+
+        let found = repo.find_by_id("job-1").await.unwrap().unwrap();
+        assert_eq!(found.status, PrintJobStatus::Completed);
+        assert!(found.completed_at.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_find_recent_orders_by_created_at() {
+        let repo = repo().await;
+
+        let job1 = valid_job("job-1", "printer-1", "Z0000001", "Z0000003", 3);
+        let job2 = valid_job("job-2", "printer-1", "Z0000004", "Z0000006", 3);
+        let job3 = valid_job("job-3", "printer-1", "Z0000007", "Z0000009", 3);
+
+        repo.save(&job1).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        repo.save(&job2).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        repo.save(&job3).await.unwrap();
+
+        let recent = repo.find_recent(2).await.unwrap();
+        assert_eq!(recent.len(), 2);
+        assert_eq!(recent[0].id, "job-3");
+        assert_eq!(recent[1].id, "job-2");
+    }
+
+    #[tokio::test]
+    async fn test_find_recent_empty() {
+        let repo = repo().await;
+        let recent = repo.find_recent(10).await.unwrap();
+        assert!(recent.is_empty());
+    }
+}

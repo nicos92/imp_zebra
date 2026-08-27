@@ -136,3 +136,109 @@ impl PrinterRepository for SqlitePrinterRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn valid_printer(id: &str, name: &str) -> Printer {
+        let config = crate::domain::value_objects::printer_config::PrinterConfig::new(
+            name,
+            "Zebra ZD421",
+            203,
+            50.0,
+            50.0,
+            2,
+            ConnectionType::Tcp,
+            "192.168.1.100",
+            9100,
+        )
+        .unwrap();
+        Printer::new(id, &config)
+    }
+
+    async fn repo() -> SqlitePrinterRepository {
+        let pool = crate::infrastructure::database::test_helpers::create_test_pool().await;
+        SqlitePrinterRepository::new(pool)
+    }
+
+    #[tokio::test]
+    async fn test_save_and_find_by_id() {
+        let repo = repo().await;
+        let printer = valid_printer("printer-1", "Test Printer");
+
+        repo.save(&printer).await.unwrap();
+
+        let found = repo.find_by_id("printer-1").await.unwrap();
+        assert!(found.is_some());
+        let found = found.unwrap();
+        assert_eq!(found.id, "printer-1");
+        assert_eq!(found.name, "Test Printer");
+        assert_eq!(found.model, "Zebra ZD421");
+        assert_eq!(found.dpi, 203);
+        assert_eq!(found.ip_address, "192.168.1.100");
+        assert_eq!(found.port, 9100);
+        assert_eq!(found.columns, 2);
+    }
+
+    #[tokio::test]
+    async fn test_find_all() {
+        let repo = repo().await;
+        let p1 = valid_printer("printer-1", "Printer One");
+        let p2 = valid_printer("printer-2", "Printer Two");
+
+        repo.save(&p1).await.unwrap();
+        repo.save(&p2).await.unwrap();
+
+        let all = repo.find_all().await.unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_update() {
+        let repo = repo().await;
+        let printer = valid_printer("printer-1", "Test Printer");
+        repo.save(&printer).await.unwrap();
+
+        let new_config = crate::domain::value_objects::printer_config::PrinterConfig::new(
+            "Updated Printer",
+            "Zebra ZD421",
+            300,
+            100.0,
+            150.0,
+            1,
+            ConnectionType::Tcp,
+            "192.168.1.101",
+            9100,
+        )
+        .unwrap();
+
+        repo.update("printer-1", &new_config).await.unwrap();
+
+        let found = repo.find_by_id("printer-1").await.unwrap().unwrap();
+        assert_eq!(found.name, "Updated Printer");
+        assert_eq!(found.dpi, 300);
+        assert_eq!(found.label_width_mm, 100.0);
+        assert_eq!(found.columns, 1);
+        assert_eq!(found.ip_address, "192.168.1.101");
+    }
+
+    #[tokio::test]
+    async fn test_delete() {
+        let repo = repo().await;
+        let printer = valid_printer("printer-1", "Test Printer");
+        repo.save(&printer).await.unwrap();
+
+        repo.delete("printer-1").await.unwrap();
+
+        let found = repo.find_by_id("printer-1").await.unwrap();
+        assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_nonexistent() {
+        let repo = repo().await;
+        let found = repo.find_by_id("nonexistent").await.unwrap();
+        assert!(found.is_none());
+    }
+}
