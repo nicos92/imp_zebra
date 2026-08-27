@@ -72,7 +72,7 @@ ZplGenerator, LabelLayout, Code 128, two-column layout with tests.
 ### Phase 5 — Printer Transport ✅ COMPLETED
 PrinterTransport trait, TcpPrinterTransport, connection testing.
 
-### Phase 6 — Application Layer
+### Phase 6 — Application Layer ✅ COMPLETED
 Use cases: ConfigurePrinter, TestPrinterConnection, GetCurrentSequence, PreviewLabel, PrintLabels.
 
 ### Phase 7 — Tauri
@@ -157,9 +157,9 @@ Output:
 | Domain/Repositories | `sequence_repository.rs`, `printer_repository.rs`, `print_job_repository.rs` (traits) | ✅ |
 | Domain/Services | `sequence_service.rs`, `label_service.rs` | ✅ |
 | Application/DTO | `printer_dto.rs`, `print_dto.rs` | ✅ |
-| Application/UseCases | `configure_printer.rs`, `get_printer_config.rs`, `test_printer.rs`, `preview_label.rs`, `print_labels.rs` | ✅ |
+| Application/UseCases | `configure_printer.rs`, `get_printer_config.rs`, `test_printer.rs`, `get_current_sequence.rs`, `preview_label.rs`, `print_labels.rs` | ✅ |
 | Infrastructure/Database | `connection.rs`, `migrations.rs`, `sqlite_sequence_repository.rs`, `sqlite_printer_repository.rs`, `sqlite_print_job_repository.rs` | ✅ |
-| Infrastructure/Printer | `tcp_transport.rs`, `zebra_printer.rs` | ✅ |
+| Infrastructure/Printer | `printer_transport.rs`, `tcp_transport.rs` | ✅ |
 | Infrastructure/ZPL | `generator.rs`, `label_layout.rs` | ✅ |
 | Commands | `printer_commands.rs`, `print_commands.rs` | ✅ |
 | Errors | `domain_error.rs`, `application_error.rs`, `infrastructure_error.rs` | ✅ |
@@ -449,3 +449,71 @@ cargo clippy: no new warnings
 2. Reused `InfrastructureError` instead of adding a `PrinterError` layer (§40 no overengineering)
 3. `test_connection` retained over `is_connected(): bool` (more informative, aligned with `TestPrinter`)
 4. Only the application use-case DI was deferred to Phase 6 (per scope decision); infrastructure + `ZebraPrinter` fully abstracted now
+
+---
+
+## 16. Phase 6 Implementation Summary
+
+### Date: 2026-08-27
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+**Dependency Inversion en los casos de uso de impresora (testabilidad, criterio #19):**
+- `TestPrinter` y `PrintLabels` ahora reciben `Arc<dyn PrinterTransport>` inyectado por constructor, en lugar de construir concretos de infraestructura (`TcpPrinterTransport`, `ZebraPrinter`) inline.
+- La composición (construir el `TcpPrinterTransport` concreto desde la config de impresora) se realiza en la capa de **commands** (composition root), manteniendo la capa de aplicación libre de infraestructura concreta (§43).
+- **`ZebraPrinter` eliminado** (se volvió código muerto en producción tras el refactor DI; §40): los casos de uso usan `transport.send()` directamente. Su cobertura quedó superada por los tests de `TestPrinter`/`PrintLabels` con `FakePrinterTransport`.
+
+**`GetCurrentSequence` — nuevo caso de uso:**
+- `get_current_sequence.rs` devuelve `SequenceInfoDto { last_used_code, next_code }` vía `SequenceService` (computa `next_code` sin persistir). Sirve al Dashboard "Próximo código" (criterio #4).
+
+**Corrección de correctitud:**
+- Los 3 `Result` ignorados de `job.start_printing()/complete()/fail()` en `PrintLabels` ahora se propagan con `?` (elimina los warnings `unused Result`).
+
+**Commands:**
+- `test_printer_connection`: carga impresora y construye el transporte antes de invocar `TestPrinter`.
+- `print_labels`: carga impresora y construye el transporte antes de invocar `PrintLabels`.
+- **`get_current_sequence`** command nuevo + registrado en `lib.rs`.
+
+### Tests Added
+
+| Módulo | Nuevos tests | Resultado |
+|--------|--------------|-----------|
+| `get_current_sequence.rs` | `test_get_current_sequence_returns_last_and_next`, `test_get_current_sequence_rollover_next` | ✅ |
+| `test_printer.rs` | `test_connection_ok`, `test_connection_fails`, `test_printer_not_configured` | ✅ |
+| `print_labels.rs` | `test_print_labels_happy_path`, `test_print_labels_send_failure_marks_failed`, `test_print_labels_missing_printer` | ✅ |
+| Removidos | `zebra_printer.rs` (3 tests del facade eliminado) | — |
+| **Total** | **79 tests** (74 previos + 8 − 3) | **All passing** |
+
+### Verification sequence (as required)
+
+1. `cargo check` ✅
+2. `cargo fmt` + `cargo clippy` ✅ (sin errores)
+3. `cargo test` ✅ (79/79, ~2s)
+4. `cargo check` (repeat) ✅
+5. `cargo fmt` + `cargo clippy` (repeat) ✅
+6. Sin warnings nuevos: se eliminaron los 3 `unused Result` y el código muerto de `ZebraPrinter`; el resto son warnings dead-code pre-existentes de fases anteriores.
+
+### Files Modified/Created
+
+| File | Change |
+|------|--------|
+| `docs/PHASE6_PLAN.md` | **New** — implementation plan |
+| `src/application/use_cases/get_current_sequence.rs` | **New** — caso de uso + tests |
+| `src/application/use_cases/test_printer.rs` | DI `Arc<dyn PrinterTransport>` + tests |
+| `src/application/use_cases/print_labels.rs` | DI transporte + propagar `Result` + tests |
+| `src/application/use_cases/mod.rs` | +`get_current_sequence` |
+| `src/commands/printer_commands.rs` | componer transporte; +`get_current_sequence` |
+| `src/commands/print_commands.rs` | componer transporte en `print_labels` |
+| `src/lib.rs` | registrar `get_current_sequence` |
+| `src/infrastructure/printer/zebra_printer.rs` | **Eliminado** (código muerto post-DI, §40) |
+| `src/infrastructure/printer/mod.rs` | quitar `zebra_printer` |
+| `docs/DEVELOPMENT.md` | this summary + phase marked complete |
+
+### Key decisions verified
+
+1. `Arc<dyn PrinterTransport>` inyectado en `TestPrinter`/`PrintLabels` → testeables con `FakePrinterTransport` sin Zebra física (criterio #19)
+2. Composición por-command (composition root) mantiene la capa de aplicación libre de infraestructura concreta (§43)
+3. `ZebraPrinter` eliminado por quedar redundante tras el refactor (§40 no sobreingeniería)
+4. `GetCurrentSequence` añadido y cableado end-to-end (criterio #4)

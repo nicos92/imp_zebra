@@ -154,8 +154,8 @@ zebra-printer/
 │   │   │   │       └── sqlite_print_job_repository.rs
 │   │   │   ├── printer/
 │   │   │   │   ├── mod.rs
-│   │   │   │   ├── tcp_transport.rs
-│   │   │   │   └── zebra_printer.rs
+│   │   │   │   ├── printer_transport.rs
+│   │   │   │   └── tcp_transport.rs
 │   │   │   └── zpl/
 │   │   │       ├── mod.rs
 │   │   │       ├── generator.rs
@@ -234,9 +234,10 @@ zebra-printer/
 |------|---------------|---------------------|----------------------|
 | `use_cases/configure_printer.rs` | Save/update printer config | Domain, DTOs | Infrastructure |
 | `use_cases/get_printer_config.rs` | Retrieve printer config | Domain, DTOs | Infrastructure |
-| `use_cases/test_printer.rs` | Test printer connection | Domain, DTOs, traits | Infrastructure impls |
+| `use_cases/test_printer.rs` | Test printer connection | Domain, DTOs, `PrinterTransport` trait | Infrastructure impls |
+| `use_cases/get_current_sequence.rs` | Return last used + next code | Domain, DTOs | Infrastructure impls |
 | `use_cases/preview_label.rs` | Generate label preview | Domain, DTOs | Infrastructure impls |
-| `use_cases/print_labels.rs` | Full print flow coordination | Domain, DTOs, traits | Infrastructure impls |
+| `use_cases/print_labels.rs` | Full print flow coordination | Domain, DTOs, `PrinterTransport` trait | Infrastructure impls |
 | `dto/printer_dto.rs` | Printer config DTO for Tauri | serde | Nothing else |
 | `dto/print_dto.rs` | Print request/result DTO | serde | Nothing else |
 
@@ -248,7 +249,6 @@ zebra-printer/
 | `database/migrations.rs` | Migration runner | sqlx | Domain |
 | `database/repositories/sqlite_*.rs` | Repository implementations | sqlx, domain traits | Tauri, TCP |
 | `printer/tcp_transport.rs` | TCP raw socket transport | tokio, domain traits | SQLite, Tauri |
-| `printer/zebra_printer.rs` | Zebra-specific printer logic | TCP transport, domain traits | SQLite |
 | `zpl/generator.rs` | ZPL II string generation | domain entities | SQLite, TCP |
 | `zpl/label_layout.rs` | Label positioning math | domain entities | Everything |
 

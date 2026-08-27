@@ -24,6 +24,7 @@ pub fn run() {
             commands::printer_commands::get_printer_config,
             commands::printer_commands::save_printer_config,
             commands::printer_commands::test_printer_connection,
+            commands::printer_commands::get_current_sequence,
             commands::print_commands::print_labels,
             commands::print_commands::preview_label,
             commands::print_commands::get_print_job,
