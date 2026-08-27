@@ -4,6 +4,7 @@ use tauri::State;
 use crate::application::dto::print_dto::SequenceInfoDto;
 use crate::application::dto::printer_dto::{PrinterConfigDto, PrinterDto};
 use crate::application::use_cases::configure_printer::ConfigurePrinter;
+use crate::application::use_cases::get_configured_printer::GetConfiguredPrinter;
 use crate::application::use_cases::get_current_sequence::GetCurrentSequence;
 use crate::application::use_cases::get_printer_config::GetPrinterConfig;
 use crate::application::use_cases::test_printer::TestPrinter;
@@ -77,5 +78,18 @@ pub async fn get_current_sequence(
     );
     let sequence_service = Arc::new(SequenceService::new(sequence_repo));
     let use_case = GetCurrentSequence::new(sequence_service);
+    use_case.execute().await
+}
+
+#[tauri::command]
+pub async fn get_configured_printer(
+    state: State<'_, AppState>,
+) -> Result<Option<PrinterDto>, ApplicationError> {
+    let repo: Arc<dyn PrinterRepository> = Arc::new(
+        crate::infrastructure::database::repositories::sqlite_printer_repository::SqlitePrinterRepository::new(
+            (*state.db).clone(),
+        ),
+    );
+    let use_case = GetConfiguredPrinter::new(repo);
     use_case.execute().await
 }

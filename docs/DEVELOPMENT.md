@@ -75,7 +75,7 @@ PrinterTransport trait, TcpPrinterTransport, connection testing.
 ### Phase 6 — Application Layer ✅ COMPLETED
 Use cases: ConfigurePrinter, TestPrinterConnection, GetCurrentSequence, PreviewLabel, PrintLabels.
 
-### Phase 7 — Tauri
+### Phase 7 — Tauri ✅ COMPLETED
 Tauri commands as thin transport layer.
 
 ### Phase 8 — Vue
@@ -157,7 +157,7 @@ Output:
 | Domain/Repositories | `sequence_repository.rs`, `printer_repository.rs`, `print_job_repository.rs` (traits) | ✅ |
 | Domain/Services | `sequence_service.rs`, `label_service.rs` | ✅ |
 | Application/DTO | `printer_dto.rs`, `print_dto.rs` | ✅ |
-| Application/UseCases | `configure_printer.rs`, `get_printer_config.rs`, `test_printer.rs`, `get_current_sequence.rs`, `preview_label.rs`, `print_labels.rs` | ✅ |
+| Application/UseCases | `configure_printer.rs`, `get_printer_config.rs`, `test_printer.rs`, `get_current_sequence.rs`, `get_configured_printer.rs`, `list_print_jobs.rs`, `preview_label.rs`, `print_labels.rs` | ✅ |
 | Infrastructure/Database | `connection.rs`, `migrations.rs`, `sqlite_sequence_repository.rs`, `sqlite_printer_repository.rs`, `sqlite_print_job_repository.rs` | ✅ |
 | Infrastructure/Printer | `printer_transport.rs`, `tcp_transport.rs` | ✅ |
 | Infrastructure/ZPL | `generator.rs`, `label_layout.rs` | ✅ |
@@ -517,3 +517,73 @@ cargo clippy: no new warnings
 2. Composición por-command (composition root) mantiene la capa de aplicación libre de infraestructura concreta (§43)
 3. `ZebraPrinter` eliminado por quedar redundante tras el refactor (§40 no sobreingeniería)
 4. `GetCurrentSequence` añadido y cableado end-to-end (criterio #4)
+
+---
+
+## 18. Phase 7 Implementation Summary
+
+### Date: 2026-08-27
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+La capa de commands Tauri (transporte delgado entre Vue y la app, §17) ya estaba
+mayoritariamente construida. Esta fase cerró los 3 gaps reales restantes:
+
+**`ListPrintJobs` — nuevo caso de uso + comando `list_print_jobs`:**
+- Envuelve `PrintJobRepository::find_recent(limit)` y devuelve `Vec<PrintJobDto>`.
+- Alimenta la vista Historial (§32) con: fecha, cantidad, código inicial/final, estado, impresora.
+- Límite saneado con `clamp(1..500)`, default 50.
+
+**`GetConfiguredPrinter` — nuevo caso de uso + comando `get_configured_printer`:**
+- Devuelve `Option<PrinterDto>` de la primera impresora de `find_all()`.
+- Resuelve la ergonomía de descubrimiento: el dashboard (§32) ahora puede mostrar la impresora
+  configurada al arrancar sin conocer el `id` (UX de impresora única). Se mantiene `get_printer_config(id)`.
+
+**Mapper compartido `From<PrintJob> for PrintJobDto`:**
+- Extraído a `application/dto/print_dto.rs` y reutilizado por `get_print_job` y `ListPrintJobs`
+  → elimina duplicación de mapeo inline.
+
+**Commands totales registrados en `lib.rs` (9):**
+`get_printer_config`, `save_printer_config`, `test_printer_connection`, `get_current_sequence`,
+`get_configured_printer`, `print_labels`, `preview_label`, `get_print_job`, `list_print_jobs`.
+
+### Tests Added
+
+| Módulo | Nuevos tests | Resultado |
+|--------|--------------|-----------|
+| `list_print_jobs.rs` | `test_list_print_jobs_maps_entities`, `test_list_print_jobs_empty`, `test_list_print_jobs_default_limit_when_none` | ✅ |
+| `get_configured_printer.rs` | `test_get_configured_printer_returns_first`, `test_get_configured_printer_none_when_empty` | ✅ |
+| **Total** | **84 tests** (79 + 5) | **All passing** |
+
+### Verification sequence (as required)
+
+1. `cargo check` ✅
+2. `cargo fmt` + `cargo clippy` ✅ (sin errores; sin warnings nuevos)
+3. `cargo test` ✅ (84/84, ~2s)
+4. `cargo check` (repeat) ✅
+5. `cargo fmt` + `cargo clippy` (repeat) ✅
+6. Sin warnings nuevos: `find_recent` ya no aparece como no usado (lo consume `ListPrintJobs`);
+   el resto son warnings dead-code pre-existentes de fases anteriores.
+
+### Files Modified/Created
+
+| File | Change |
+|------|--------|
+| `docs/PHASE7_PLAN.md` | **New** — plan de la fase |
+| `src/application/use_cases/list_print_jobs.rs` | **New** — caso de uso + 3 tests |
+| `src/application/use_cases/get_configured_printer.rs` | **New** — caso de uso + 2 tests |
+| `src/application/dto/print_dto.rs` | + `impl From<PrintJob> for PrintJobDto` |
+| `src/application/use_cases/mod.rs` | + `list_print_jobs`, `+ get_configured_printer` |
+| `src/commands/printer_commands.rs` | + `get_configured_printer` command |
+| `src/commands/print_commands.rs` | `get_print_job` usa `From`; + `list_print_jobs` command |
+| `src/lib.rs` | registrar `get_configured_printer`, `list_print_jobs` |
+| `docs/DEVELOPMENT.md` | this summary + phase marked complete |
+
+### Key decisions verified
+
+1. `list_print_jobs` + `get_configured_printer` pasan por casos de uso (commands delgados, §17)
+2. Composición por-command mantenida (cada command constituye sus repos, §43)
+3. Mapper `From<PrintJob>` deduplica y centraliza el mapeo a DTO (§40, §17)
+4. Mismatch resuelto con coerciones `as` de `Arc` concretos a trait object en tests con fakes

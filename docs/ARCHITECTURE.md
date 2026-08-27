@@ -234,12 +234,14 @@ zebra-printer/
 |------|---------------|---------------------|----------------------|
 | `use_cases/configure_printer.rs` | Save/update printer config | Domain, DTOs | Infrastructure |
 | `use_cases/get_printer_config.rs` | Retrieve printer config | Domain, DTOs | Infrastructure |
+| `use_cases/get_configured_printer.rs` | Get first configured printer | Domain, DTOs | Infrastructure impls |
 | `use_cases/test_printer.rs` | Test printer connection | Domain, DTOs, `PrinterTransport` trait | Infrastructure impls |
 | `use_cases/get_current_sequence.rs` | Return last used + next code | Domain, DTOs | Infrastructure impls |
+| `use_cases/list_print_jobs.rs` | List recent print jobs | Domain, DTOs | Infrastructure impls |
 | `use_cases/preview_label.rs` | Generate label preview | Domain, DTOs | Infrastructure impls |
 | `use_cases/print_labels.rs` | Full print flow coordination | Domain, DTOs, `PrinterTransport` trait | Infrastructure impls |
 | `dto/printer_dto.rs` | Printer config DTO for Tauri | serde | Nothing else |
-| `dto/print_dto.rs` | Print request/result DTO | serde | Nothing else |
+| `dto/print_dto.rs` | Print request/result DTO + `From<PrintJob>` | serde, `PrintJob` | Nothing else |
 
 ### Infrastructure Layer
 

@@ -4,6 +4,7 @@ use tauri::State;
 use crate::application::dto::print_dto::{
     PreviewLabelDto, PrintJobDto, PrintRequestDto, PrintResultDto,
 };
+use crate::application::use_cases::list_print_jobs::ListPrintJobs;
 use crate::application::use_cases::preview_label::PreviewLabel;
 use crate::application::use_cases::print_labels::PrintLabels;
 use crate::domain::repositories::print_job_repository::PrintJobRepository;
@@ -76,14 +77,19 @@ pub async fn get_print_job(
         (*state.db).clone(),
     );
     let job = repo.find_by_id(&job_id).await?;
-    Ok(job.map(|j| PrintJobDto {
-        id: j.id,
-        printer_id: j.printer_id,
-        start_code: j.start_code,
-        end_code: j.end_code,
-        quantity: j.quantity,
-        status: j.status.to_string(),
-        created_at: j.created_at.to_rfc3339(),
-        completed_at: j.completed_at.map(|dt| dt.to_rfc3339()),
-    }))
+    Ok(job.map(PrintJobDto::from))
+}
+
+#[tauri::command]
+pub async fn list_print_jobs(
+    state: State<'_, AppState>,
+    limit: Option<i64>,
+) -> Result<Vec<PrintJobDto>, ApplicationError> {
+    let repo: Arc<dyn PrintJobRepository> = Arc::new(
+        crate::infrastructure::database::repositories::sqlite_print_job_repository::SqlitePrintJobRepository::new(
+            (*state.db).clone(),
+        ),
+    );
+    let use_case = ListPrintJobs::new(repo);
+    use_case.execute(limit).await
 }

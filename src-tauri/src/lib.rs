@@ -25,9 +25,11 @@ pub fn run() {
             commands::printer_commands::save_printer_config,
             commands::printer_commands::test_printer_connection,
             commands::printer_commands::get_current_sequence,
+            commands::printer_commands::get_configured_printer,
             commands::print_commands::print_labels,
             commands::print_commands::preview_label,
             commands::print_commands::get_print_job,
+            commands::print_commands::list_print_jobs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
