@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use sqlx::sqlite::SqlitePool;
+use std::sync::Arc;
 
 pub struct AppState {
     pub db: Arc<SqlitePool>,

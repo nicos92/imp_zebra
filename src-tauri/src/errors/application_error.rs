@@ -32,14 +32,10 @@ impl Serialize for ApplicationError {
                     ("PRINTER_CONNECTION_FAILED", e.to_string())
                 }
                 InfrastructureError::PrinterTimeout => ("PRINTER_TIMEOUT", e.to_string()),
-                InfrastructureError::PrinterUnavailable => {
-                    ("PRINTER_UNAVAILABLE", e.to_string())
-                }
+                InfrastructureError::PrinterUnavailable => ("PRINTER_UNAVAILABLE", e.to_string()),
                 InfrastructureError::ZplGeneration(_) => ("ZPL_GENERATION_FAILED", e.to_string()),
             },
-            ApplicationError::PrinterNotConfigured => {
-                ("PRINTER_NOT_CONFIGURED", self.to_string())
-            }
+            ApplicationError::PrinterNotConfigured => ("PRINTER_NOT_CONFIGURED", self.to_string()),
             ApplicationError::PrintJobFailed(_) => ("PRINT_JOB_FAILED", self.to_string()),
         };
 

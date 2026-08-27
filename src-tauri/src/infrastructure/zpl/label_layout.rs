@@ -1,3 +1,9 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LabelPosition {
+    pub row: u32,
+    pub column: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct LabelLayout {
     pub label_width_dots: u32,
@@ -12,12 +18,7 @@ pub struct LabelLayout {
 }
 
 impl LabelLayout {
-    pub fn new(
-        label_width_dots: u32,
-        label_height_dots: u32,
-        columns: u32,
-        dpi: u32,
-    ) -> Self {
+    pub fn new(label_width_dots: u32, label_height_dots: u32, columns: u32, dpi: u32) -> Self {
         Self {
             label_width_dots,
             label_height_dots,

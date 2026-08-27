@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use crate::domain::entities::sequence::Sequence;
 use crate::domain::repositories::sequence_repository::SequenceRepository;
 use crate::errors::domain_error::DomainError;
+use std::sync::Arc;
 
 pub struct SequenceService {
     repository: Arc<dyn SequenceRepository>,

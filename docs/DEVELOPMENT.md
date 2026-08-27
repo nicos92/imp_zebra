@@ -66,7 +66,7 @@ Implement Barcode, Sequence, PrintJob, Printer config with tests.
 ### Phase 3 — SQLite ✅ COMPLETED
 Database connection, migrations, repositories, transactions.
 
-### Phase 4 — ZPL
+### Phase 4 — ZPL ✅ COMPLETED
 ZplGenerator, LabelLayout, Code 128, two-column layout with tests.
 
 ### Phase 5 — Printer Transport
@@ -324,3 +324,57 @@ cargo test: 67/67 passing
 4. Foreign key constraints enforce printer_id references
 5. Print job tests require creating a valid printer first (FK)
 6. Migration table seed produces `Z0000000` initial code
+
+## 14. Phase 4 Implementation Summary
+
+### Date: 2026-08-27
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+**`LabelPosition` struct (align with docs/ZPL.md):**
+- New typed `LabelPosition { row, column }` in `label_layout.rs` replacing raw `(String, u32, u32)` tuples
+- `ZplGenerator::generate_batch` signature now `&[(String, LabelPosition)]`
+- `LabelService::calculate_positions` returns `Vec<(String, LabelPosition)>`
+- Eliminated inline position-calculation duplication in `PrintLabels` (now uses `LabelService`)
+- `PreviewLabel` uses `LabelPosition { row: 0, column: 0 }`
+
+**No Code 128 Rust encoder:** ZPL `^BC` encodes Code 128 natively on the printer; `^BCN` + `^BY2` retained.
+
+### Tests Added (68 total, +1 from Phase 3)
+
+| Module | Tests | Status |
+|--------|-------|--------|
+| All Phase 1-3 modules | 67 tests | ✅ |
+| `infrastructure::zpl::generator` | +1 (`test_generate_odd_quantity_no_phantom`) | ✅ |
+| **Total** | **68 tests** | **All passing** |
+
+### Compilation
+
+```
+cargo test:  68/68 passing
+cargo check: OK (21 warnings, all pre-existing unused-code)
+cargo fmt:   clean
+cargo clippy: no new warnings
+```
+
+### Files Modified/Created
+
+| File | Change |
+|------|--------|
+| `docs/PHASE4_PLAN.md` | **New** — implementation plan |
+| `src/infrastructure/zpl/label_layout.rs` | +`LabelPosition` struct |
+| `src/infrastructure/zpl/generator.rs` | signature `&[(String, LabelPosition)]` + tests |
+| `src/domain/services/label_service.rs` | return `Vec<(String, LabelPosition)>` + test |
+| `src/application/use_cases/print_labels.rs` | use `LabelService::calculate_positions` |
+| `src/application/use_cases/preview_label.rs` | use `LabelPosition` |
+| `docs/DEVELOPMENT.md` | this summary + phase marked complete |
+| `docs/ZPL.md` | interface already documents `LabelPosition` (verified aligned) |
+
+### Key decisions verified
+
+1. `LabelPosition` aligns the code with the documented interface in `docs/ZPL.md` §9
+2. Distribution rule (odd→left, even→right) centralized in `LabelService`
+3. Odd quantities produce no phantom ZPL for the empty position
+4. Refactor produces identical ZPL output; no behavior change

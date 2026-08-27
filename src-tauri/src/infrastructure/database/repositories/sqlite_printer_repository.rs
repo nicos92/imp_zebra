@@ -1,5 +1,5 @@
-use sqlx::sqlite::SqlitePool;
 use async_trait::async_trait;
+use sqlx::sqlite::SqlitePool;
 
 use crate::domain::entities::printer::Printer;
 use crate::domain::repositories::printer_repository::PrinterRepository;

@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
 use crate::errors::domain_error::DomainError;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrintJobStatus {
@@ -49,7 +49,13 @@ pub struct PrintJob {
 }
 
 impl PrintJob {
-    pub fn new(id: &str, printer_id: &str, start_code: &str, end_code: &str, quantity: u64) -> Self {
+    pub fn new(
+        id: &str,
+        printer_id: &str,
+        start_code: &str,
+        end_code: &str,
+        quantity: u64,
+    ) -> Self {
         Self {
             id: id.to_string(),
             printer_id: printer_id.to_string(),

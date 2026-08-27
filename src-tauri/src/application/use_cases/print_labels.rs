@@ -4,6 +4,7 @@ use crate::application::dto::print_dto::{PrintRequestDto, PrintResultDto};
 use crate::domain::entities::print_job::PrintJob;
 use crate::domain::repositories::print_job_repository::PrintJobRepository;
 use crate::domain::repositories::printer_repository::PrinterRepository;
+use crate::domain::services::label_service::LabelService;
 use crate::domain::services::sequence_service::SequenceService;
 use crate::errors::application_error::ApplicationError;
 use crate::infrastructure::printer::zebra_printer::ZebraPrinter;
@@ -46,13 +47,7 @@ impl PrintLabels {
             .map_err(ApplicationError::Domain)?;
 
         let job_id = uuid::Uuid::new_v4().to_string();
-        let mut job = PrintJob::new(
-            &job_id,
-            &request.printer_id,
-            &start,
-            &end,
-            request.quantity,
-        );
+        let mut job = PrintJob::new(&job_id, &request.printer_id, &start, &end, request.quantity);
 
         self.print_job_repository.save(&job).await?;
 
@@ -64,19 +59,10 @@ impl PrintLabels {
         );
         let generator = ZplGenerator::new(layout);
 
-        let timestamp = chrono::Local::now()
-            .format("%d/%m/%Y %H:%M:%S")
-            .to_string();
+        let timestamp = chrono::Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
 
-        let labels_with_positions = codes
-            .iter()
-            .enumerate()
-            .map(|(i, code)| {
-                let row = (i as u32) / printer.columns;
-                let col = (i as u32) % printer.columns;
-                (code.clone(), row, col)
-            })
-            .collect::<Vec<_>>();
+        let labels_with_positions =
+            LabelService::new().calculate_positions(&codes, printer.columns);
 
         let zpl = generator.generate_batch(&labels_with_positions, &timestamp);
 

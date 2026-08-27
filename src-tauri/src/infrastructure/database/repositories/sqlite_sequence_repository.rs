@@ -1,5 +1,5 @@
-use sqlx::sqlite::SqlitePool;
 use async_trait::async_trait;
+use sqlx::sqlite::SqlitePool;
 
 use crate::domain::entities::sequence::Sequence;
 use crate::domain::repositories::sequence_repository::SequenceRepository;
@@ -18,10 +18,11 @@ impl SqliteSequenceRepository {
 #[async_trait]
 impl SequenceRepository for SqliteSequenceRepository {
     async fn get_last_used_code(&self) -> Result<String, DomainError> {
-        let row: (String,) = sqlx::query_as("SELECT last_used_code FROM sequence_state WHERE id = 1")
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| DomainError::Database(e.to_string()))?;
+        let row: (String,) =
+            sqlx::query_as("SELECT last_used_code FROM sequence_state WHERE id = 1")
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| DomainError::Database(e.to_string()))?;
 
         Ok(row.0)
     }
@@ -38,23 +39,21 @@ impl SequenceRepository for SqliteSequenceRepository {
         Ok(())
     }
 
-    async fn reserve_range(
-        &self,
-        quantity: u64,
-    ) -> Result<(String, String, String), DomainError> {
+    async fn reserve_range(&self, quantity: u64) -> Result<(String, String, String), DomainError> {
         let mut tx = self
             .pool
             .begin()
             .await
             .map_err(|e| DomainError::Database(e.to_string()))?;
 
-        let row: (String,) = sqlx::query_as("SELECT last_used_code FROM sequence_state WHERE id = 1")
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|e| DomainError::Database(e.to_string()))?;
+        let row: (String,) =
+            sqlx::query_as("SELECT last_used_code FROM sequence_state WHERE id = 1")
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|e| DomainError::Database(e.to_string()))?;
 
-        let mut sequence = Sequence::from_code(&row.0)
-            .map_err(|e| DomainError::Database(e.to_string()))?;
+        let mut sequence =
+            Sequence::from_code(&row.0).map_err(|e| DomainError::Database(e.to_string()))?;
 
         let (start, end, _codes) = sequence
             .reserve_range(quantity)

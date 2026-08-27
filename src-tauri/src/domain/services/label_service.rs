@@ -1,5 +1,6 @@
 use crate::domain::entities::sequence::Sequence;
 use crate::errors::domain_error::DomainError;
+use crate::infrastructure::zpl::label_layout::LabelPosition;
 
 pub struct LabelService;
 
@@ -17,14 +18,14 @@ impl LabelService {
         &self,
         codes: &[String],
         columns: u32,
-    ) -> Vec<(String, u32, u32)> {
+    ) -> Vec<(String, LabelPosition)> {
         codes
             .iter()
             .enumerate()
             .map(|(i, code)| {
                 let row = (i as u32) / columns;
                 let col = (i as u32) % columns;
-                (code.clone(), row, col)
+                (code.clone(), LabelPosition { row, column: col })
             })
             .collect()
     }
@@ -49,6 +50,7 @@ mod tests {
 
     #[test]
     fn test_calculate_positions() {
+        use crate::infrastructure::zpl::label_layout::LabelPosition;
         let service = LabelService::new();
         let codes = vec![
             "Z0000001".to_string(),
@@ -57,11 +59,14 @@ mod tests {
             "Z0000004".to_string(),
         ];
         let positions = service.calculate_positions(&codes, 2);
-        assert_eq!(positions, vec![
-            ("Z0000001".to_string(), 0, 0),
-            ("Z0000002".to_string(), 0, 1),
-            ("Z0000003".to_string(), 1, 0),
-            ("Z0000004".to_string(), 1, 1),
-        ]);
+        assert_eq!(
+            positions,
+            vec![
+                ("Z0000001".to_string(), LabelPosition { row: 0, column: 0 }),
+                ("Z0000002".to_string(), LabelPosition { row: 0, column: 1 }),
+                ("Z0000003".to_string(), LabelPosition { row: 1, column: 0 }),
+                ("Z0000004".to_string(), LabelPosition { row: 1, column: 1 }),
+            ]
+        );
     }
 }

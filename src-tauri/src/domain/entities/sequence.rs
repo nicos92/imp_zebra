@@ -38,7 +38,10 @@ impl Sequence {
         Ok(codes)
     }
 
-    pub fn reserve_range(&mut self, quantity: u64) -> Result<(String, String, Vec<String>), DomainError> {
+    pub fn reserve_range(
+        &mut self,
+        quantity: u64,
+    ) -> Result<(String, String, Vec<String>), DomainError> {
         if quantity == 0 {
             return Err(DomainError::InvalidQuantity { value: 0 });
         }
@@ -97,9 +100,11 @@ impl Sequence {
         }
 
         let number_str = &code[1..];
-        number_str.parse::<u64>().map_err(|_| DomainError::InvalidBarcode {
-            code: code.to_string(),
-        })
+        number_str
+            .parse::<u64>()
+            .map_err(|_| DomainError::InvalidBarcode {
+                code: code.to_string(),
+            })
     }
 }
 
@@ -173,13 +178,10 @@ mod tests {
         assert_eq!(start, "Z9999998");
         assert_eq!(end, "Z0000003");
         assert_eq!(codes.len(), 5);
-        assert_eq!(codes, vec![
-            "Z9999998",
-            "Z9999999",
-            "Z0000001",
-            "Z0000002",
-            "Z0000003"
-        ]);
+        assert_eq!(
+            codes,
+            vec!["Z9999998", "Z9999999", "Z0000001", "Z0000002", "Z0000003"]
+        );
     }
 
     #[test]

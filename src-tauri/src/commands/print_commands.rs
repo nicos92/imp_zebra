@@ -1,6 +1,8 @@
 use tauri::State;
 
-use crate::application::dto::print_dto::{PreviewLabelDto, PrintJobDto, PrintRequestDto, PrintResultDto};
+use crate::application::dto::print_dto::{
+    PreviewLabelDto, PrintJobDto, PrintRequestDto, PrintResultDto,
+};
 use crate::application::use_cases::preview_label::PreviewLabel;
 use crate::application::use_cases::print_labels::PrintLabels;
 use crate::domain::repositories::print_job_repository::PrintJobRepository;
@@ -47,7 +49,9 @@ pub async fn preview_label(
     let sequence_service = std::sync::Arc::new(SequenceService::new(sequence_repo));
 
     let use_case = PreviewLabel::new(sequence_service);
-    use_case.execute(label_width_mm, label_height_mm, columns, dpi).await
+    use_case
+        .execute(label_width_mm, label_height_mm, columns, dpi)
+        .await
 }
 
 #[tauri::command]

@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
 use crate::domain::value_objects::printer_config::{ConnectionType, PrinterConfig};
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
 pub struct Printer {

@@ -4,7 +4,7 @@ use crate::application::dto::print_dto::PreviewLabelDto;
 use crate::domain::services::sequence_service::SequenceService;
 use crate::errors::application_error::ApplicationError;
 use crate::infrastructure::zpl::generator::ZplGenerator;
-use crate::infrastructure::zpl::label_layout::LabelLayout;
+use crate::infrastructure::zpl::label_layout::{LabelLayout, LabelPosition};
 
 pub struct PreviewLabel {
     sequence_service: Arc<SequenceService>,
@@ -28,11 +28,12 @@ impl PreviewLabel {
             seq.next()
         };
 
-        let layout = LabelLayout::from_printer_config(label_width_mm, label_height_mm, columns, dpi);
+        let layout =
+            LabelLayout::from_printer_config(label_width_mm, label_height_mm, columns, dpi);
         let generator = ZplGenerator::new(layout);
 
         let timestamp = chrono::Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
-        let labels = vec![(next_code.clone(), 0, 0)];
+        let labels = vec![(next_code.clone(), LabelPosition { row: 0, column: 0 })];
         let zpl = generator.generate_batch(&labels, &timestamp);
 
         Ok(PreviewLabelDto {

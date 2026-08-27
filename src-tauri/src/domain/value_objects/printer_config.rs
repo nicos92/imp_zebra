@@ -54,7 +54,14 @@ impl PrinterConfig {
         ip_address: &str,
         port: u16,
     ) -> Result<Self, DomainError> {
-        Self::validate(dpi, label_width_mm, label_height_mm, columns, ip_address, port)?;
+        Self::validate(
+            dpi,
+            label_width_mm,
+            label_height_mm,
+            columns,
+            ip_address,
+            port,
+        )?;
 
         Ok(Self {
             name: name.to_string(),
@@ -183,8 +190,15 @@ mod tests {
     #[test]
     fn test_invalid_dpi() {
         assert!(PrinterConfig::new(
-            "Test", "ZT410", 0, 50.0, 50.0, 2,
-            ConnectionType::Tcp, "192.168.1.100", 9100
+            "Test",
+            "ZT410",
+            0,
+            50.0,
+            50.0,
+            2,
+            ConnectionType::Tcp,
+            "192.168.1.100",
+            9100
         )
         .is_err());
     }
@@ -192,8 +206,15 @@ mod tests {
     #[test]
     fn test_invalid_width() {
         assert!(PrinterConfig::new(
-            "Test", "ZT410", 203, 0.0, 50.0, 2,
-            ConnectionType::Tcp, "192.168.1.100", 9100
+            "Test",
+            "ZT410",
+            203,
+            0.0,
+            50.0,
+            2,
+            ConnectionType::Tcp,
+            "192.168.1.100",
+            9100
         )
         .is_err());
     }
@@ -201,8 +222,15 @@ mod tests {
     #[test]
     fn test_invalid_columns() {
         assert!(PrinterConfig::new(
-            "Test", "ZT410", 203, 50.0, 50.0, 0,
-            ConnectionType::Tcp, "192.168.1.100", 9100
+            "Test",
+            "ZT410",
+            203,
+            50.0,
+            50.0,
+            0,
+            ConnectionType::Tcp,
+            "192.168.1.100",
+            9100
         )
         .is_err());
     }
@@ -210,8 +238,15 @@ mod tests {
     #[test]
     fn test_invalid_port() {
         assert!(PrinterConfig::new(
-            "Test", "ZT410", 203, 50.0, 50.0, 2,
-            ConnectionType::Tcp, "192.168.1.100", 0
+            "Test",
+            "ZT410",
+            203,
+            50.0,
+            50.0,
+            2,
+            ConnectionType::Tcp,
+            "192.168.1.100",
+            0
         )
         .is_err());
     }
@@ -232,16 +267,29 @@ mod tests {
 
     #[test]
     fn test_connection_type_from_str() {
-        assert_eq!(ConnectionType::from_str("tcp").unwrap(), ConnectionType::Tcp);
-        assert_eq!(ConnectionType::from_str("USB").unwrap(), ConnectionType::Usb);
+        assert_eq!(
+            ConnectionType::from_str("tcp").unwrap(),
+            ConnectionType::Tcp
+        );
+        assert_eq!(
+            ConnectionType::from_str("USB").unwrap(),
+            ConnectionType::Usb
+        );
         assert!(ConnectionType::from_str("invalid").is_err());
     }
 
     #[test]
     fn test_invalid_ip_address() {
         let result = PrinterConfig::new(
-            "Test", "Zebra", 203, 50.0, 50.0, 2,
-            ConnectionType::Tcp, "invalid-ip", 9100,
+            "Test",
+            "Zebra",
+            203,
+            50.0,
+            50.0,
+            2,
+            ConnectionType::Tcp,
+            "invalid-ip",
+            9100,
         );
         assert!(result.is_err());
     }
@@ -249,8 +297,15 @@ mod tests {
     #[test]
     fn test_valid_ip_address() {
         let result = PrinterConfig::new(
-            "Test", "Zebra", 203, 50.0, 50.0, 2,
-            ConnectionType::Tcp, "192.168.1.100", 9100,
+            "Test",
+            "Zebra",
+            203,
+            50.0,
+            50.0,
+            2,
+            ConnectionType::Tcp,
+            "192.168.1.100",
+            9100,
         );
         assert!(result.is_ok());
     }

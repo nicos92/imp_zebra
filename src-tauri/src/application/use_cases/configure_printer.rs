@@ -16,8 +16,8 @@ impl ConfigurePrinter {
     }
 
     pub async fn execute(&self, dto: PrinterConfigDto) -> Result<PrinterDto, ApplicationError> {
-        let connection_type = ConnectionType::from_str(&dto.connection_type)
-            .map_err(ApplicationError::Domain)?;
+        let connection_type =
+            ConnectionType::from_str(&dto.connection_type).map_err(ApplicationError::Domain)?;
 
         let config = PrinterConfig::new(
             &dto.name,

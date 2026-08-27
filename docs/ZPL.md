@@ -234,8 +234,8 @@ impl ZplGenerator {
 }
 
 pub struct LabelPosition {
-    pub column: u32,  // 0 = left, 1 = right
     pub row: u32,     // 0-based row index
+    pub column: u32,  // 0 = left, 1 = right
 }
 ```
 

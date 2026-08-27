@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
+use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri::Manager;
 

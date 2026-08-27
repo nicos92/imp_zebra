@@ -1,5 +1,5 @@
-use sqlx::sqlite::SqlitePool;
 use async_trait::async_trait;
+use sqlx::sqlite::SqlitePool;
 
 use crate::domain::entities::print_job::{PrintJob, PrintJobStatus};
 use crate::domain::repositories::print_job_repository::PrintJobRepository;
@@ -52,7 +52,9 @@ impl PrintJobRepository for SqlitePrintJobRepository {
             start_code: r.2,
             end_code: r.3,
             quantity: r.4 as u64,
-            status: PrintJobStatus::from_str(&r.5).ok().unwrap_or(PrintJobStatus::Pending),
+            status: PrintJobStatus::from_str(&r.5)
+                .ok()
+                .unwrap_or(PrintJobStatus::Pending),
             created_at: chrono::DateTime::parse_from_rfc3339(&r.6)
                 .map(|dt| dt.with_timezone(&chrono::Utc))
                 .unwrap_or_else(|_| chrono::Utc::now()),
@@ -99,7 +101,9 @@ impl PrintJobRepository for SqlitePrintJobRepository {
                 start_code: r.2,
                 end_code: r.3,
                 quantity: r.4 as u64,
-                status: PrintJobStatus::from_str(&r.5).ok().unwrap_or(PrintJobStatus::Pending),
+                status: PrintJobStatus::from_str(&r.5)
+                    .ok()
+                    .unwrap_or(PrintJobStatus::Pending),
                 created_at: chrono::DateTime::parse_from_rfc3339(&r.6)
                     .map(|dt| dt.with_timezone(&chrono::Utc))
                     .unwrap_or_else(|_| chrono::Utc::now()),
