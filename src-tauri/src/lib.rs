@@ -5,6 +5,8 @@ mod errors;
 mod infrastructure;
 mod state;
 
+use tauri::Manager;
+
 pub use state::app_state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -14,11 +16,12 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             tauri::async_runtime::block_on(async {
-                infrastructure::database::connection::create_pool(&app_handle)
+                let pool = infrastructure::database::connection::create_pool(&app_handle)
                     .await
-                    .expect("Failed to create database pool");
-            });
-            Ok(())
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+                app.manage(AppState::new(std::sync::Arc::new(pool)));
+                Ok::<(), Box<dyn std::error::Error>>(())
+            })
         })
         .invoke_handler(tauri::generate_handler![
             commands::printer_commands::get_printer_config,

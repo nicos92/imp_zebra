@@ -673,3 +673,74 @@ los 9 commands Tauri mediante `invoke`. El frontend **no genera ZPL ni códigos 
 3. `jsdom` solo como devDependency: no afecta el bundle de producción
 4. `AppModal` con `<Teleport to="body">` para z-index correcto; tests sobre `document.body`
 5. Sin ZPL ni secuencia en frontend: solo renderiza lo que devuelve el backend (§16)
+
+## 20. Phase 9 Implementation Summary
+
+### Date: 2026-08-28
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+Integración completa de la cadena **Vue → Tauri → Rust → SQLite → ZPL → TCP → Zebra**
+(ver `docs/PHASE9_PLAN.md` y `docs/PHASE9_SUMMARY.md`). Los layers ya existían con tests
+unitarios por capa; esta fase los ejercitó juntos por primera vez y destapó **3 bugs reales**:
+
+1. **Wiring crítico** (`src-tauri/src/lib.rs`): `AppState` (pool SQLite) se creaba en
+   `setup()` y se descartaba sin `.manage()`. Los 9 commands piden `State<'_, AppState>`,
+   luego cualquier invocación real fallaba con *"state not managed by the application"*.
+   **Fix**: `.manage(AppState::new(Arc::new(pool)))` en `setup()`, propagando el error a
+   `Box<dyn Error>` en vez de `.expect()`.
+2. **Crash de tests en Windows** (`STATUS_ENTRYPOINT_NOT_FOUND 0xc0000139`): el binary de
+   tests de la lib no arrancaba. Causa raíz conocida de Tauri
+   ([#13419](https://github.com/tauri-apps/tauri/issues/13419)): los ejecutables de test no
+   llevan el manifest de Windows. **Fix** en `src-tauri/build.rs`: `tauri_build::try_build`
+   con `WindowsAttributes::new_without_app_manifest()` + embebido manual del manifest en
+   **todos** los artefactos (`cargo:rustc-link-arg` `/MANIFEST:EMBED` `/MANIFESTINPUT`).
+3. **Off-by-one en secuencia** (`domain/services/sequence_service.rs`): `codes_for_range`
+   trataba `start` (primer código a usar) como último usado → imprimía
+   `Z0000002..Z0000005` para cantidad 4 mientras el job reportaba `Z0000001..Z0000004`.
+   **Fix**: `Sequence::new(parse(start) - 1).next_n(quantity)`; test unitario reforzado.
+
+**Backend — tests de integración en la capa de commands** (nuevo `integration_tests.rs`,
+10 escenarios; `#[cfg(test)] mod` en `commands/mod.rs`): Tauri mock runtime
+(`tauri` feature `test` solo en dev-deps), SQLite real in-memory
+(`create_test_pool`) y TCP real local (`TcpListener 127.0.0.1:0`) como impresora.
+Cubren save/read/config, conexión ok/refused (`PRINTER_CONNECTION_FAILED`), secuencia,
+preview, envío ZPL real con códigos correctos, fail (`PRINT_JOB_FAILED`) con job `failed`,
+y printer ausente (`PRINTER_NOT_CONFIGURED`).
+
+**`mock_zebra`** (`src-tauri/examples/mock_zebra.rs`): impresora TCP de desarrollo que
+captura el ZPL de cada conexión a un archivo con separadores por job — habilita el E2E
+manual sin Zebra física (runbook en `docs/PHASE9_SUMMARY.md`).
+
+**Frontend — tests de integración a nivel de vista** (13 nuevos): `DashboardView.spec.ts`
+(4), `PrinterSettingsView.spec.ts` (5), `HistoryView.spec.ts` (4), con el patrón
+`vi.mock("@tauri-apps/api/core")` + Pinia real.
+
+### Tests
+
+| Suite | Antes | Después |
+|-------|-------|---------|
+| Backend (`cargo test`) | 84 | **94** (lib) |
+| Frontend (`pnpm test`) | 50 | **63** |
+
+### Verification sequence
+
+1. `cargo test --no-run` ✅ → `cargo test` ✅ (94/94)
+2. `cargo fmt --all` ✅ + `cargo clippy --all-targets` ✅ (15 warnings preexistentes, 0 nuevos)
+3. `cargo build --example mock_zebra` ✅ + smoke test TCP real ✅
+4. `pnpm test` ✅ (63/63)
+5. `pnpm build` ✅
+6. `pnpm lint` ✅ (sin warnings nuevos)
+7. Runbook manual E2E: `mock_zebra` + `pnpm tauri dev` (documentado; requiere la UI)
+
+### Key decisions verified
+
+1. `tauri { features = ["test"] }` solo en `[dev-dependencies]` (no contamina el build real)
+2. Manifest embebido para todos los targets: tests y binario usan Common-Controls 6 igual
+3. Los tests de integración usan infraestructura real (SQLite + TCP), no fakes
+4. La herramienta `mock_zebra` con puerto `0` esquiva colisiones (p. ej. Zebra Print Manager
+   ocupando el 9100)
+5. Fuera de alcance (Fase 10 Hardening): `tracing`, eventos Tauri→Vue, cola/reintentos,
+   `completed_at NOT NULL`, detalle `get_print_job` en HistoryView, transportes USB/Serial.

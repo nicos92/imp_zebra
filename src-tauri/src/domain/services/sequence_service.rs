@@ -27,15 +27,12 @@ impl SequenceService {
     }
 
     fn codes_for_range(&self, start: &str, quantity: u64) -> Result<Vec<String>, DomainError> {
-        let mut sequence = Sequence::from_code(start)?;
         if quantity == 0 {
             return Err(DomainError::InvalidQuantity { value: 0 });
         }
-        let mut codes = Vec::with_capacity(quantity as usize);
-        for _ in 0..quantity {
-            codes.push(sequence.next());
-        }
-        Ok(codes)
+        let start_value = Sequence::parse_code(start)?;
+        let mut before_start = Sequence::new(start_value.saturating_sub(1))?;
+        before_start.next_n(quantity)
     }
 
     pub async fn get_next_code(&self) -> Result<String, DomainError> {
@@ -105,7 +102,10 @@ mod tests {
         let (start, end, codes) = service.reserve_range(5).await.unwrap();
         assert_eq!(start, "Z0000001");
         assert_eq!(end, "Z0000005");
-        assert_eq!(codes.len(), 5);
+        assert_eq!(
+            codes,
+            vec!["Z0000001", "Z0000002", "Z0000003", "Z0000004", "Z0000005"]
+        );
 
         let last_used = repo.get_last_used_code().await.unwrap();
         assert_eq!(last_used, "Z0000005");
