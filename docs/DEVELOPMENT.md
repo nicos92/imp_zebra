@@ -78,7 +78,7 @@ Use cases: ConfigurePrinter, TestPrinterConnection, GetCurrentSequence, PreviewL
 ### Phase 7 — Tauri ✅ COMPLETED
 Tauri commands as thin transport layer.
 
-### Phase 8 — Vue
+### Phase 8 — Vue ✅ COMPLETED
 Printer Settings, Printing, Preview, History, Status views.
 
 ### Phase 9 — Integration
@@ -587,3 +587,89 @@ mayoritariamente construida. Esta fase cerró los 3 gaps reales restantes:
 2. Composición por-command mantenida (cada command constituye sus repos, §43)
 3. Mapper `From<PrintJob>` deduplica y centraliza el mapeo a DTO (§40, §17)
 4. Mismatch resuelto con coerciones `as` de `Arc` concretos a trait object en tests con fakes
+
+## 19. Phase 8 Implementation Summary
+
+### Date: 2026-08-28
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+Frontend Vue completo que cumple la interfaz de §32 y los criterios de §42, consumiendo
+los 9 commands Tauri mediante `invoke`. El frontend **no genera ZPL ni códigos secuenciales** (§16).
+
+**Arquitectura frontend:**
+- **Pinia mínimo (1 store `printer`)**: estado compartido entre las 3 vistas (impresora
+  configurada, próximo código, estado de conexión). Se refresca tras guardar en
+  Configuración y tras imprimir en Dashboard.
+- **3 vistas**: `DashboardView` (estado + próximo código + cantidad + imprimir + preview),
+  `PrinterSettingsView` (form + probar conexión), `HistoryView` (tabla `list_print_jobs`).
+- **vue-router**: 3 rutas (`/`, `/settings`, `/history`) con hash history.
+- **Capa `infrastructure/tauri` + tipos TS**: `tauriClient` envuelve `invoke` y traduce
+  el rechazo `{ code, message }` en `TauriError`; `printerApi`/`printingApi` exponen
+  funciones tipadas por command. El resto de la app no conoce `invoke`.
+- **`usePrintProgress`**: máquina de pasos de impresión (§33) — `idle/preparing/
+  connecting/sending/done/error`.
+- **`get_print_job` se omite** (§40): Historial usa `list_print_jobs`; se añadirá una
+  vista de detalle si hace falta.
+
+**Cierre de gaps (ver `docs/PHASE8_GAP_CLOSING.md`):**
+- `AppModal.vue` creado (base reutilizable, `<Teleport to="body">`).
+- `tauriClient.spec.ts` dedicado (`invokeCommand`, `isTauriError`).
+- Smoke tests de los 10 componentes (solo mount/smoke, §Tests).
+- `vitest.config.ts` + devDependency `jsdom` (los `mount` de `@vue/test-utils` requieren DOM).
+
+**Frontend files created (src/):**
+
+| File | Responsibility |
+|------|----------------|
+| `main.ts` | Router + Pinia + mount |
+| `App.vue` | Shell con nav + `<RouterView>` |
+| `router/index.ts` | 3 rutas |
+| `stores/printer.ts` | Store Pinia `usePrinterStore` |
+| `composables/usePrintProgress.ts` | Máquina de pasos de impresión |
+| `infrastructure/tauri/tauriClient.ts` | Wrapper de `invoke` + `TauriError` |
+| `infrastructure/tauri/printerApi.ts` | Funciones por command (printer) |
+| `infrastructure/tauri/printingApi.ts` | Funciones por command (printing) |
+| `types/index.ts` | Tipos TS (DTOs + errores) |
+| `utils/format.ts` | Formateo de fecha/estado/errores |
+| `styles/main.css` | Reset + tokens globales |
+| `views/DashboardView.vue` | Pantalla principal |
+| `views/PrinterSettingsView.vue` | Configuración de impresora |
+| `views/HistoryView.vue` | Historial de trabajos |
+| `components/common/AppButton.vue` | Botón base |
+| `components/common/AppInput.vue` | Input base |
+| `components/common/AppModal.vue` | Modal base (preview) |
+| `components/printer/PrinterStatus.vue` | Estado impresora + próximo código |
+| `components/printer/PrinterForm.vue` | Form de configuración |
+| `components/printing/PrintQuantityForm.vue` | Form cantidad |
+| `components/printing/PrintProgress.vue` | Progreso §33 |
+| `components/printing/PrintResult.vue` | Resultado/códigos |
+| `components/printing/LabelPreview.vue` | Preview de etiqueta |
+
+### Tests (50 passing)
+
+| Módulo | Tests | Estado |
+|--------|-------|--------|
+| `infrastructure/tauri/tauriClient` | 5 (invokeCommand, isTauriError) | ✅ |
+| `infrastructure/tauri/printerApi` | 8 (5 commands + commandErrorMessage) | ✅ |
+| `infrastructure/tauri/printingApi` | 4 (printLabels, previewLabel, listPrintJobs, error) | ✅ |
+| `stores/printer` | 4 (load, load error, setPrinter, status) | ✅ |
+| `composables/usePrintProgress` | 6 (transiciones + error + reset) | ✅ |
+| `components` (10 specs) | 23 (smoke + casos mínimos) | ✅ |
+| **Total** | **50** | **All passing** |
+
+### Verification sequence (as required)
+
+1. `pnpm test` ✅ (50/50)
+2. `pnpm build` ✅
+3. `pnpm lint` + `pnpm format` ✅ (sin warnings nuevos)
+
+### Key decisions verified
+
+1. Pinia mínimo: el estado cruza 3 vistas, se refresca tras guardar/imprimir (§16)
+2. `infrastructure/tauri` aísla `invoke`: el resto de la app solo conoce funciones tipadas (§17)
+3. `jsdom` solo como devDependency: no afecta el bundle de producción
+4. `AppModal` con `<Teleport to="body">` para z-index correcto; tests sobre `document.body`
+5. Sin ZPL ni secuencia en frontend: solo renderiza lo que devuelve el backend (§16)

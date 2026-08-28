@@ -26,13 +26,19 @@ Infrastructure depends on abstractions defined by Domain/Application. Domain nev
 ┌─────────────────────────────────────────────────────────┐
 │                      Vue 3 Frontend                      │
 │  ┌──────────┐  ┌──────────┐  ┌───────────────────────┐  │
-│  │ Printer  │  │ Printing │  │     Dashboard         │  │
-│  │ Settings │  │   View   │  │     (status)          │  │
+│  │ Printer  │  │ Dashboard│  │     History           │  │
+│  │ Settings │  │ (status, │  │   (list_print_jobs)   │  │
+│  │          │  │  print,  │  │                       │  │
+│  │          │  │ preview) │  │                       │  │
 │  └────┬─────┘  └────┬─────┘  └───────────┬───────────┘  │
 │       │              │                    │              │
 │  ┌────▼──────────────▼────────────────────▼───────────┐  │
+│  │                    Pinia Store                      │  │
+│  │               (stores/printer.ts)                   │  │
+│  └─────────────────────────┬───────────────────────────┘  │
+│  ┌─────────────────────────▼───────────────────────────┐  │
 │  │              Infrastructure/Tauri                   │  │
-│  │         (tauriClient.ts, printerApi.ts)             │  │
+│  │   (tauriClient.ts, printerApi.ts, printingApi.ts)   │  │
 │  └──────────────────────┬─────────────────────────────┘  │
 └─────────────────────────┼───────────────────────────────┘
                           │ invoke()
@@ -182,32 +188,42 @@ zebra-printer/
 │   ├── components/
 │   │   ├── printer/
 │   │   │   ├── PrinterForm.vue
-│   │   │   ├── PrinterStatus.vue
-│   │   │   └── PrinterTestButton.vue
+│   │   │   └── PrinterStatus.vue
 │   │   ├── printing/
 │   │   │   ├── PrintQuantityForm.vue
 │   │   │   ├── PrintProgress.vue
-│   │   │   └── PrintResult.vue
+│   │   │   ├── PrintResult.vue
+│   │   │   └── LabelPreview.vue
 │   │   └── common/
 │   │       ├── AppButton.vue
-│   │       └── AppInput.vue
-│   ├── views/
-│   │   ├── DashboardView.vue
-│   │   ├── PrinterSettingsView.vue
-│   │   └── PrintingView.vue
+│   │       ├── AppInput.vue
+│   │       └── AppModal.vue
+│   ├── composables/
+│   │   └── usePrintProgress.ts
 │   ├── infrastructure/
 │   │   └── tauri/
 │   │       ├── tauriClient.ts
 │   │       ├── printerApi.ts
 │   │       └── printingApi.ts
+│   ├── router/
+│   │   └── index.ts
+│   ├── stores/
+│   │   └── printer.ts
+│   ├── styles/
+│   │   └── main.css
 │   ├── types/
 │   │   └── index.ts
-│   └── styles/
-│       └── main.css
+│   ├── utils/
+│   │   └── format.ts
+│   └── views/
+│       ├── DashboardView.vue
+│       ├── HistoryView.vue
+│       └── PrinterSettingsView.vue
 │
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
+├── vitest.config.ts
 └── README.md
 ```
 
@@ -268,8 +284,12 @@ zebra-printer/
 | `infrastructure/tauri/tauriClient.ts` | Tauri invoke wrapper | @tauri-apps/api | Everything else |
 | `infrastructure/tauri/printerApi.ts` | Printer API calls | tauriClient | Nothing else |
 | `infrastructure/tauri/printingApi.ts` | Print API calls | tauriClient | Nothing else |
-| `components/**/*.vue` | UI components | TypeScript types, tauriApi | Direct Tauri invoke |
-| `views/*.vue` | View composition | Components, API functions | Business logic |
+| `stores/printer.ts` | Shared state (printer, sequence, status) | tauriClient, printerApi, printingApi | Direct Tauri invoke |
+| `composables/usePrintProgress.ts` | Print stage machine (§33) | Nothing | Business logic |
+| `router/index.ts` | Route definitions | views | Business logic |
+| `utils/format.ts` | Date/status/error formatting | Nothing | Nothing |
+| `components/**/*.vue` | UI components | TypeScript types, utils | Direct Tauri invoke |
+| `views/*.vue` | View composition | Components, stores, APIs | Business logic |
 | `types/index.ts` | Shared TypeScript types | Nothing | Nothing |
 
 ## 6. Dependency Decisions
@@ -300,11 +320,12 @@ zebra-printer/
 |---------|---------|---------|---------------|
 | `vue` | ^3.5 | UI framework | Required |
 | `vue-router` | ^4.5 | Navigation | Multiple views |
-| `pinia` | ^3.0 | State management | Minimal use, only if shared state needed |
+| `pinia` | ^4.0 | State management | Shared state across views |
 | `@tauri-apps/api` | ^2 | Tauri frontend API | invoke() bridge |
 | `typescript` | ~5.7 | Type safety | Required |
-| `vite` | ^6.0 | Build tool | Required |
+| `vite` | ^8.0 | Build tool | Required |
 | `vitest` | ^3.0 | Testing | Frontend tests |
+| `jsdom` | ^30.0 | Test DOM | Component mount tests (dev only) |
 
 ## 7. Error Propagation
 
