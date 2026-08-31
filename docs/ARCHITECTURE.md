@@ -178,7 +178,8 @@ zebra-printer/
 │   │       └── app_state.rs
 │   │
 │   ├── migrations/
-│   │   └── 001_initial.sql
+│   │   ├── 001_initial.sql
+│   │   └── 002_completed_at_check.sql
 │   │
 │   └── Cargo.toml
 │
@@ -411,4 +412,21 @@ Repository traits and PrinterTransport trait allow unit testing without SQLite o
 | State Management | ✅ | `app_state.rs` |
 | Documentation | ✅ | 5 docs files created |
 
-### Tests: 34 passing
+### Tests: 98 passing (backend) + 66 passing (frontend)
+
+## 11. Phase 10 Hardening Notes
+
+- **Structured logging** — `tracing_subscriber` env-filter init in `lib.rs::run()`
+  (`RUST_LOG`, default `info`); `#[instrument]` + events on print flow, printer config,
+  connection test, sequence reservation, and TCP transport.
+- **Max print quantity** — `Sequence::MAX_PRINT_QUANTITY = 10_000` enforced in
+  `reserve_range`; new `DomainError::QuantityTooLarge`. Concurrency of range reservation
+  exercised by an explicit test (8 tasks × 25 codes).
+- **`completed_at` constraint** — migration `002_completed_at_check.sql` rebuilds
+  `print_jobs` with `CHECK (status NOT IN ('completed','failed') OR completed_at IS NOT NULL)`
+  + backfill of legacy terminal rows. A blanket `NOT NULL` was avoided (pending/printing
+  jobs legitimately have no completion time).
+- **History detail** — `HistoryView.vue` uses `get_print_job` via `getPrintJob` for an
+  on-demand detail panel.
+- Kept calibration change in `label_layout.rs` (barcode_height 150, title_font_size 10);
+  do not revert.

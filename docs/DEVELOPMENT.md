@@ -81,11 +81,12 @@ Tauri commands as thin transport layer.
 ### Phase 8 — Vue ✅ COMPLETED
 Printer Settings, Printing, Preview, History, Status views.
 
-### Phase 9 — Integration
+### Phase 9 — Integration ✅ COMPLETED
 Full flow: Vue → Tauri → Rust → SQLite → ZPL → TCP → Zebra.
 
-### Phase 10 — Hardening
+### Phase 10 — Hardening ✅ COMPLETED
 Error handling, logging, recovery, concurrency, edge cases, tests.
+See [PHASE10_SUMMARY.md](./PHASE10_SUMMARY.md).
 
 ## 7. Testing
 
@@ -742,5 +743,55 @@ manual sin Zebra física (runbook en `docs/PHASE9_SUMMARY.md`).
 3. Los tests de integración usan infraestructura real (SQLite + TCP), no fakes
 4. La herramienta `mock_zebra` con puerto `0` esquiva colisiones (p. ej. Zebra Print Manager
    ocupando el 9100)
-5. Fuera de alcance (Fase 10 Hardening): `tracing`, eventos Tauri→Vue, cola/reintentos,
-   `completed_at NOT NULL`, detalle `get_print_job` en HistoryView, transportes USB/Serial.
+5. Fuera de alcance de la Fase 9 (ver Fase 10): `tracing`, eventos Tauri→Vue, cola/reintentos,
+   `completed_at` NOT NULL/CHECK, detalle `get_print_job` en HistoryView, transportes USB/Serial.
+   La Fase 10 (Hardening) abordó: logging (tracing), límite de cantidad + test de concurrencia,
+   constraint `completed_at` y el panel de detalle de HistoryView.
+
+## 21. Phase 10 Implementation Summary
+
+### Date: 2026-08-31
+
+### Status: COMPLETED ✅
+
+### What was implemented
+
+**1. Structured logging (`tracing`)**
+- `lib.rs` init `tracing_subscriber` env-filter (`RUST_LOG`, default `info`).
+- `#[instrument]` + events en `print_labels` (created/started/completed/failed),
+  `configure_printer`, `test_printer`, `sequence_service` (range reserved);
+  `warn!` en `tcp_transport` (timeouts/errores). Sin logging a nivel de repositorio (§40).
+
+**2. Límite de cantidad + test de concurrencia**
+- `Sequence::MAX_PRINT_QUANTITY = 10_000`; guard en `reserve_range`
+  (`> max` → `QuantityTooLarge`, `== 0` → `InvalidQuantity`).
+- `DomainError::QuantityTooLarge { value, max }`.
+- `test_concurrent_reserve_ranges_do_not_overlap` (8 tareas × 25 códigos, rangos contiguos).
+
+**3. Constraint `completed_at` (migración `002_completed_at_check.sql`)**
+- Rebuild de `print_jobs` + `CHECK (status NOT IN ('completed','failed') OR completed_at IS NOT NULL)`.
+- Backfill de filas terminales legacy sin timestamp (→ `created_at`).
+- `NOT NULL` plano se evitó: pending/printing no tienen fecha de fin (CHECK condicional).
+
+**4. Panel de detalle en HistoryView**
+- `printingApi.ts` + `getPrintJob`; `HistoryView.vue` + botón `Detalle` que abre detalle
+  vía `get_print_job` (ID, impresora, cantidad, códigos, estado, creado/completado).
+
+**5. Docs**
+- `PHASE10_PLAN.md` / `PHASE10_SUMMARY.md`; `DEVELOPMENT.md`/`ARCHITECTURE.md` actualizados.
+- Se conserva el cambio de calibración no-committeado en `label_layout.rs`
+  (barcode_height 150, title_font_size 10) por decisión del usuario.
+
+### Tests
+
+| Suite | Antes | Después |
+|-------|-------|---------|
+| Backend (`cargo test`) | 94 | **98** |
+| Frontend (`pnpm test`) | 63 | **66** |
+
+### Verification sequence
+
+1. `cargo test` ✅ (98/98)
+2. `cargo fmt --all` ✅ + `cargo clippy --all-targets` ✅ (15 warnings preexistentes, 0 nuevos)
+3. `pnpm test` ✅ (66/66)
+4. `pnpm build` ✅ + `pnpm lint` ✅ (0 issues)

@@ -84,4 +84,43 @@ describe("HistoryView", () => {
     expect(invokeMock).toHaveBeenCalledTimes(2);
     expect(wrapper.text()).toContain("Z0000001");
   });
+
+  it("opens the detail panel and fetches job detail on Detalle", async () => {
+    invokeMock.mockResolvedValueOnce([jobFixture()]);
+    invokeMock.mockResolvedValueOnce(jobFixture({ printer_id: "printer-7", quantity: 9 }));
+
+    const wrapper = mount(HistoryView);
+    await flushPromises();
+
+    const detailButtons = wrapper.findAll("button");
+    const detailButton = detailButtons.find((b) => b.text() === "Detalle");
+    expect(detailButton).toBeDefined();
+
+    await detailButton!.trigger("click");
+    await flushPromises();
+
+    expect(invokeMock).toHaveBeenCalledWith("get_print_job", { jobId: "job-1" });
+    expect(wrapper.find(".history__detail").exists()).toBe(true);
+    expect(wrapper.text()).toContain("printer-7");
+    expect(wrapper.text()).toContain("Código inicial");
+  });
+
+  it("shows an error when fetching the detail fails", async () => {
+    invokeMock.mockResolvedValueOnce([jobFixture()]);
+    invokeMock.mockRejectedValueOnce({
+      code: "DATABASE_ERROR",
+      message: "No se pudo cargar el detalle",
+    });
+
+    const wrapper = mount(HistoryView);
+    await flushPromises();
+
+    const detailButton = wrapper.findAll("button").find((b) => b.text() === "Detalle");
+    await detailButton!.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find("[role='alert']").text()).toContain(
+      "No se pudo cargar el detalle",
+    );
+  });
 });

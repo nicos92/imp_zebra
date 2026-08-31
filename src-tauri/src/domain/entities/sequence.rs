@@ -3,6 +3,8 @@ use crate::errors::domain_error::DomainError;
 const MAX_CODE: u64 = 9_999_999;
 const CODE_LENGTH: usize = 7;
 
+pub const MAX_PRINT_QUANTITY: u64 = 10_000;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sequence {
     last_used: u64,
@@ -44,6 +46,12 @@ impl Sequence {
     ) -> Result<(String, String, Vec<String>), DomainError> {
         if quantity == 0 {
             return Err(DomainError::InvalidQuantity { value: 0 });
+        }
+        if quantity > MAX_PRINT_QUANTITY {
+            return Err(DomainError::QuantityTooLarge {
+                value: quantity,
+                max: MAX_PRINT_QUANTITY,
+            });
         }
 
         let start = self.increment_value(self.last_used);
@@ -169,6 +177,27 @@ mod tests {
         assert_eq!(end, "Z0000005");
         assert_eq!(codes.len(), 5);
         assert_eq!(seq.last_used_code(), "Z0000005");
+    }
+
+    #[test]
+    fn test_reserve_range_quantity_too_large() {
+        let mut seq = Sequence::new(0).unwrap();
+        let result = seq.reserve_range(MAX_PRINT_QUANTITY + 1).unwrap_err();
+        assert!(matches!(
+            result,
+            DomainError::QuantityTooLarge { value, max } if value == MAX_PRINT_QUANTITY + 1 && max == MAX_PRINT_QUANTITY
+        ));
+        assert_eq!(seq.last_used_code(), "Z0000000");
+    }
+
+    #[test]
+    fn test_reserve_range_max_quantity_ok() {
+        let mut seq = Sequence::new(0).unwrap();
+        let (start, end, codes) = seq.reserve_range(MAX_PRINT_QUANTITY).unwrap();
+        assert_eq!(start, "Z0000001");
+        assert_eq!(end, "Z0010000");
+        assert_eq!(codes.len(), MAX_PRINT_QUANTITY as usize);
+        assert_eq!(seq.last_used_code(), "Z0010000");
     }
 
     #[test]

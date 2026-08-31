@@ -6,7 +6,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: invokeMock,
 }));
 
-import { listPrintJobs, previewLabel, printLabels } from "./printingApi";
+import { getPrintJob, listPrintJobs, previewLabel, printLabels } from "./printingApi";
 
 describe("printingApi", () => {
   beforeEach(() => {
@@ -55,6 +55,24 @@ describe("printingApi", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("list_print_jobs", { limit: 50 });
     expect(jobs).toEqual([]);
+  });
+
+  it("getPrintJob passes the job id", async () => {
+    invokeMock.mockResolvedValueOnce({
+      id: "job-1",
+      printer_id: "printer-1",
+      start_code: "Z0000001",
+      end_code: "Z0000004",
+      quantity: 4,
+      status: "completed",
+      created_at: "2026-08-28T08:00:00Z",
+      completed_at: "2026-08-28T08:00:05Z",
+    });
+
+    const job = await getPrintJob("job-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("get_print_job", { jobId: "job-1" });
+    expect(job?.id).toBe("job-1");
   });
 
   it("propagates rejected errors from invoke", async () => {

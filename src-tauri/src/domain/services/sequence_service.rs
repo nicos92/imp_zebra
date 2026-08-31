@@ -2,6 +2,7 @@ use crate::domain::entities::sequence::Sequence;
 use crate::domain::repositories::sequence_repository::SequenceRepository;
 use crate::errors::domain_error::DomainError;
 use std::sync::Arc;
+use tracing::{event, instrument, Level};
 
 pub struct SequenceService {
     repository: Arc<dyn SequenceRepository>,
@@ -12,17 +13,26 @@ impl SequenceService {
         Self { repository }
     }
 
+    #[instrument(skip_all)]
     pub async fn get_current_sequence(&self) -> Result<Sequence, DomainError> {
         let code = self.repository.get_last_used_code().await?;
         Sequence::from_code(&code)
     }
 
+    #[instrument(skip_all, fields(quantity = quantity))]
     pub async fn reserve_range(
         &self,
         quantity: u64,
     ) -> Result<(String, String, Vec<String>), DomainError> {
         let (start, end, _new_last) = self.repository.reserve_range(quantity).await?;
         let codes = self.codes_for_range(&start, quantity)?;
+        event!(
+            Level::INFO,
+            quantity,
+            start = %start,
+            end = %end,
+            "sequence range reserved"
+        );
         Ok((start, end, codes))
     }
 

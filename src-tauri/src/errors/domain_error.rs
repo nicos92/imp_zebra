@@ -11,6 +11,9 @@ pub enum DomainError {
     #[error("Invalid quantity: {value}")]
     InvalidQuantity { value: u64 },
 
+    #[error("Quantity too large: {value} exceeds limit of {max}")]
+    QuantityTooLarge { value: u64, max: u64 },
+
     #[error("Invalid printer config: {field} - {message}")]
     InvalidPrinterConfig { field: String, message: String },
 

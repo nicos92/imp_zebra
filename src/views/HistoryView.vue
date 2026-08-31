@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { listPrintJobs } from "../infrastructure/tauri/printingApi";
+import { getPrintJob, listPrintJobs } from "../infrastructure/tauri/printingApi";
 import { commandErrorMessage } from "../infrastructure/tauri/tauriClient";
 import type { PrintJob } from "../types";
 import { formatDate, formatStatus } from "../utils/format";
@@ -10,15 +10,35 @@ const jobs = ref<PrintJob[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
+const selectedJob = ref<PrintJob | null>(null);
+const detailLoading = ref(false);
+const detailError = ref<string | null>(null);
+
 async function load(): Promise<void> {
   loading.value = true;
   error.value = null;
   try {
     jobs.value = await listPrintJobs(50);
+    selectedJob.value = null;
+    detailError.value = null;
   } catch (e) {
     error.value = commandErrorMessage(e);
   } finally {
     loading.value = false;
+  }
+}
+
+async function selectJob(job: PrintJob): Promise<void> {
+  if (detailLoading.value) return;
+  detailLoading.value = true;
+  detailError.value = null;
+  selectedJob.value = job;
+  try {
+    selectedJob.value = await getPrintJob(job.id);
+  } catch (e) {
+    detailError.value = commandErrorMessage(e);
+  } finally {
+    detailLoading.value = false;
   }
 }
 
@@ -64,9 +84,54 @@ onMounted(load);
               {{ formatStatus(job.status) }}
             </span>
           </td>
+          <td>
+            <AppButton variant="secondary" @click="selectJob(job)">
+              Detalle
+            </AppButton>
+          </td>
         </tr>
       </tbody>
     </table>
+
+    <section v-if="selectedJob || detailLoading" class="history__detail" aria-live="polite">
+      <h3 class="history__detail-title">Detalle del trabajo</h3>
+      <p v-if="detailLoading" class="history__muted">Cargando detalle...</p>
+      <p v-else-if="detailError" class="history__error" role="alert">{{ detailError }}</p>
+      <dl v-else-if="selectedJob" class="history__detail-list">
+        <div class="history__detail-row">
+          <dt>ID</dt>
+          <dd><code>{{ selectedJob.id }}</code></dd>
+        </div>
+        <div class="history__detail-row">
+          <dt>Printer ID</dt>
+          <dd><code>{{ selectedJob.printer_id }}</code></dd>
+        </div>
+        <div class="history__detail-row">
+          <dt>Cantidad</dt>
+          <dd>{{ selectedJob.quantity }}</dd>
+        </div>
+        <div class="history__detail-row">
+          <dt>Código inicial</dt>
+          <dd><code>{{ selectedJob.start_code }}</code></dd>
+        </div>
+        <div class="history__detail-row">
+          <dt>Código final</dt>
+          <dd><code>{{ selectedJob.end_code }}</code></dd>
+        </div>
+        <div class="history__detail-row">
+          <dt>Estado</dt>
+          <dd>{{ formatStatus(selectedJob.status) }}</dd>
+        </div>
+        <div class="history__detail-row">
+          <dt>Creado</dt>
+          <dd>{{ formatDate(selectedJob.created_at) }}</dd>
+        </div>
+        <div class="history__detail-row">
+          <dt>Completado</dt>
+          <dd>{{ selectedJob.completed_at ? formatDate(selectedJob.completed_at) : "—" }}</dd>
+        </div>
+      </dl>
+    </section>
   </div>
 </template>
 
@@ -147,5 +212,42 @@ onMounted(load);
 
 .history__status--failed {
   background: var(--color-danger);
+}
+
+.history__detail {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.history__detail-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.history__detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.history__detail-row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.history__detail-row dt {
+  width: 8rem;
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.history__detail-row dd {
+  margin: 0;
 }
 </style>

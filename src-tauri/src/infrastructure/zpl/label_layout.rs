@@ -25,8 +25,8 @@ impl LabelLayout {
             columns,
             margin_x: 50,
             margin_y: 50,
-            barcode_height: 100,
-            title_font_size: 30,
+            barcode_height: 150,
+            title_font_size: 10,
             code_font_size: 25,
             dpi,
         }

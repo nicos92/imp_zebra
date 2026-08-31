@@ -10,6 +10,7 @@ use crate::errors::application_error::ApplicationError;
 use crate::infrastructure::printer::printer_transport::PrinterTransport;
 use crate::infrastructure::zpl::generator::ZplGenerator;
 use crate::infrastructure::zpl::label_layout::LabelLayout;
+use tracing::{event, instrument, Level};
 
 pub struct PrintLabels {
     sequence_service: Arc<SequenceService>,
@@ -33,6 +34,7 @@ impl PrintLabels {
         }
     }
 
+    #[instrument(skip_all, fields(printer_id = %request.printer_id, quantity = request.quantity))]
     pub async fn execute(
         &self,
         request: PrintRequestDto,
@@ -53,6 +55,13 @@ impl PrintLabels {
         let mut job = PrintJob::new(&job_id, &request.printer_id, &start, &end, request.quantity);
 
         self.print_job_repository.save(&job).await?;
+        event!(
+            Level::INFO,
+            job_id = %job_id,
+            start_code = %start,
+            end_code = %end,
+            "print job created"
+        );
 
         let layout = LabelLayout::from_printer_config(
             printer.label_width_mm,
@@ -73,6 +82,11 @@ impl PrintLabels {
         self.print_job_repository
             .update_status(&job_id, job.status.clone(), None)
             .await?;
+        event!(
+            Level::INFO,
+            job_id = %job_id,
+            "print job started"
+        );
 
         match self.transport.send(zpl.as_bytes()).await {
             Ok(()) => {
@@ -84,6 +98,13 @@ impl PrintLabels {
                         Some(&chrono::Utc::now().to_rfc3339()),
                     )
                     .await?;
+                event!(
+                    Level::INFO,
+                    job_id = %job_id,
+                    start_code = %start,
+                    end_code = %end,
+                    "print job completed"
+                );
             }
             Err(e) => {
                 job.fail().map_err(ApplicationError::Domain)?;
@@ -94,6 +115,12 @@ impl PrintLabels {
                         Some(&chrono::Utc::now().to_rfc3339()),
                     )
                     .await?;
+                event!(
+                    Level::ERROR,
+                    job_id = %job_id,
+                    error = %e,
+                    "print job failed"
+                );
                 return Err(ApplicationError::PrintJobFailed(e.to_string()));
             }
         }

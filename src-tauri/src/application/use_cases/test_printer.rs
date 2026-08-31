@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::domain::repositories::printer_repository::PrinterRepository;
 use crate::errors::application_error::ApplicationError;
 use crate::infrastructure::printer::printer_transport::PrinterTransport;
+use tracing::{event, instrument, Level};
 
 pub struct TestPrinter {
     printer_repository: Arc<dyn PrinterRepository>,
@@ -20,6 +21,7 @@ impl TestPrinter {
         }
     }
 
+    #[instrument(skip_all, fields(printer_id = %printer_id))]
     pub async fn execute(&self, printer_id: &str) -> Result<bool, ApplicationError> {
         self.printer_repository
             .find_by_id(printer_id)
@@ -27,6 +29,7 @@ impl TestPrinter {
             .ok_or(ApplicationError::PrinterNotConfigured)?;
 
         self.transport.test_connection().await?;
+        event!(Level::INFO, printer_id = %printer_id, "printer connection test ok");
 
         Ok(true)
     }

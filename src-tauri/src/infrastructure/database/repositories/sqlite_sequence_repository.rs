@@ -78,6 +78,7 @@ impl SequenceRepository for SqliteSequenceRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     async fn repo() -> SqliteSequenceRepository {
         let pool = crate::infrastructure::database::test_helpers::create_test_pool().await;
@@ -126,5 +127,48 @@ mod tests {
 
         let code = repo.get_last_used_code().await.unwrap();
         assert_eq!(code, "Z0000004");
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_reserve_ranges_do_not_overlap() {
+        let repo = Arc::new(repo().await);
+        let tasks = 8;
+        let per_task = 25u64;
+
+        let mut handles = Vec::new();
+        for _ in 0..tasks {
+            let repo = Arc::clone(&repo);
+            handles.push(tokio::spawn(async move {
+                let (start, end, _new_last) = repo.reserve_range(per_task).await.unwrap();
+                (start, end)
+            }));
+        }
+
+        let mut ranges: Vec<(String, String)> = Vec::new();
+        for handle in handles {
+            ranges.push(handle.await.unwrap());
+        }
+
+        assert_eq!(ranges.len(), tasks);
+
+        let mut values: Vec<(u64, u64)> = ranges
+            .iter()
+            .map(|(start, end)| {
+                let s = Sequence::parse_code(start).unwrap();
+                let e = Sequence::parse_code(end).unwrap();
+                (s, e)
+            })
+            .collect();
+        values.sort_unstable();
+
+        let expected_total = tasks as u64 * per_task;
+        let mut seen = 0u64;
+        for (s, e) in values {
+            assert_eq!(s, seen + 1, "ranges must be contiguous and non-overlapping");
+            assert_eq!(e, s + per_task - 1);
+            assert!(e <= Sequence::parse_code("Z9999999").unwrap());
+            seen = e;
+        }
+        assert_eq!(seen, expected_total);
     }
 }

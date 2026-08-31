@@ -7,6 +7,7 @@ use async_trait::async_trait;
 
 use crate::errors::infrastructure_error::InfrastructureError;
 use crate::infrastructure::printer::printer_transport::PrinterTransport;
+use tracing::{instrument, warn};
 
 pub struct TcpPrinterTransport {
     address: String,
@@ -35,11 +36,16 @@ impl TcpPrinterTransport {
 
 #[async_trait]
 impl PrinterTransport for TcpPrinterTransport {
+    #[instrument(skip(self, data), fields(address = %self.address))]
     async fn send(&self, data: &[u8]) -> Result<(), InfrastructureError> {
         let mut stream = timeout(self.connect_timeout, TcpStream::connect(&self.address))
             .await
-            .map_err(|_| InfrastructureError::PrinterTimeout)?
+            .map_err(|_| {
+                warn!(address = %self.address, "printer connection timed out");
+                InfrastructureError::PrinterTimeout
+            })?
             .map_err(|e| {
+                warn!(address = %self.address, error = %e, "printer connection error");
                 InfrastructureError::PrinterConnection(format!(
                     "Failed to connect to {}: {}",
                     self.address, e
@@ -52,26 +58,39 @@ impl PrinterTransport for TcpPrinterTransport {
 
         timeout(self.write_timeout, stream.write_all(data))
             .await
-            .map_err(|_| InfrastructureError::PrinterTimeout)?
+            .map_err(|_| {
+                warn!(address = %self.address, "printer write timed out");
+                InfrastructureError::PrinterTimeout
+            })?
             .map_err(|e| {
+                warn!(address = %self.address, error = %e, "printer connection error");
                 InfrastructureError::PrinterConnection(format!("Failed to send data: {}", e))
             })?;
 
         timeout(self.write_timeout, stream.flush())
             .await
-            .map_err(|_| InfrastructureError::PrinterTimeout)?
+            .map_err(|_| {
+                warn!(address = %self.address, "printer flush timed out");
+                InfrastructureError::PrinterTimeout
+            })?
             .map_err(|e| {
+                warn!(address = %self.address, error = %e, "printer connection error");
                 InfrastructureError::PrinterConnection(format!("Failed to flush: {}", e))
             })?;
 
         Ok(())
     }
 
+    #[instrument(skip(self), fields(address = %self.address))]
     async fn test_connection(&self) -> Result<(), InfrastructureError> {
         let stream = timeout(self.connect_timeout, TcpStream::connect(&self.address))
             .await
-            .map_err(|_| InfrastructureError::PrinterTimeout)?
+            .map_err(|_| {
+                warn!(address = %self.address, "printer connection timed out");
+                InfrastructureError::PrinterTimeout
+            })?
             .map_err(|e| {
+                warn!(address = %self.address, error = %e, "printer connection error");
                 InfrastructureError::PrinterConnection(format!(
                     "Failed to connect to {}: {}",
                     self.address, e

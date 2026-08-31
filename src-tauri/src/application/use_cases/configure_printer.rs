@@ -5,6 +5,7 @@ use crate::domain::entities::printer::Printer;
 use crate::domain::repositories::printer_repository::PrinterRepository;
 use crate::domain::value_objects::printer_config::{ConnectionType, PrinterConfig};
 use crate::errors::application_error::ApplicationError;
+use tracing::{event, instrument, Level};
 
 pub struct ConfigurePrinter {
     repository: Arc<dyn PrinterRepository>,
@@ -15,6 +16,7 @@ impl ConfigurePrinter {
         Self { repository }
     }
 
+    #[instrument(skip_all, fields(printer_id = %dto.id.as_deref().unwrap_or("__new__"), name = %dto.name, model = %dto.model))]
     pub async fn execute(&self, dto: PrinterConfigDto) -> Result<PrinterDto, ApplicationError> {
         let connection_type =
             ConnectionType::from_str(&dto.connection_type).map_err(ApplicationError::Domain)?;
@@ -39,10 +41,12 @@ impl ConfigurePrinter {
         if let Some(mut printer) = existing {
             printer.update(&config);
             self.repository.update(&id, &config).await?;
+            event!(Level::INFO, printer_id = %id, "printer updated");
             Ok(self.to_dto(&printer))
         } else {
             let printer = Printer::new(&id, &config);
             self.repository.save(&printer).await?;
+            event!(Level::INFO, printer_id = %id, "printer configured");
             Ok(self.to_dto(&printer))
         }
     }

@@ -22,3 +22,7 @@ export function previewLabel(
 export function listPrintJobs(limit?: number): Promise<PrintJob[]> {
   return invokeCommand<PrintJob[]>("list_print_jobs", { limit });
 }
+
+export function getPrintJob(jobId: string): Promise<PrintJob | null> {
+  return invokeCommand<PrintJob | null>("get_print_job", { jobId });
+}
