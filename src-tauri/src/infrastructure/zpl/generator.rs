@@ -68,19 +68,27 @@ impl ZplGenerator {
         let (title_x, title_y) = self.layout.title_position(pos.column, pos.row);
         zpl.push_str(&format!(
             "^FO{},{}\n^A@N,{},{}\n^FD{}\n^FS\n",
-            title_x, title_y, self.layout.title_font_size, self.layout.title_font_size, timestamp
+            title_x,
+            title_y,
+            self.layout.title_font_size,
+            self.layout.title_font_width,
+            timestamp
         ));
 
         let (barcode_x, barcode_y) = self.layout.barcode_position(pos.column, pos.row);
         zpl.push_str(&format!(
-            "^FO{},{}\n^BY3\n^BCN,{},Y,N\n^FD{}\n^FS\n",
-            barcode_x, barcode_y, self.layout.barcode_height, code
+            "^FO{},{}\n^BY3,{},{}\n^BCN,,N,N\n^FD{}\n^FS\n",
+            barcode_x, barcode_y, self.layout.barcode_ratio, self.layout.barcode_height, code
         ));
 
         let (text_x, text_y) = self.layout.code_text_position(pos.column, pos.row);
         zpl.push_str(&format!(
             "^FO{},{}\n^A@N,{},{}\n^FD{}\n^FS\n",
-            text_x, text_y, self.layout.code_font_size, self.layout.code_font_size, code
+            text_x,
+            text_y,
+            self.layout.code_font_size,
+            self.layout.code_font_width,
+            code
         ));
     }
 }
@@ -105,7 +113,9 @@ mod tests {
         assert!(zpl.ends_with("^XZ\n"));
         assert!(zpl.contains("Z0000001"));
         assert!(zpl.contains("26/08/2026 07:15:32"));
-        assert!(zpl.contains("^BCB"));
+        assert!(zpl.contains("^BCB,,N,N"), "barcode should have no interpretation line");
+        assert!(zpl.contains("^BY3,3,240"), "barcode format should match Zebra Designer");
+        assert_eq!(zpl.matches("^BCB").count(), 1, "only one barcode for one label");
     }
 
     #[test]

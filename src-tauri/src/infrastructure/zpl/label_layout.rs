@@ -14,8 +14,10 @@ pub struct LabelLayout {
     pub barcode_height: u32,
     pub barcode_ratio: f64,
     pub title_font_size: u32,
-    pub dpi: u32,
+    pub title_font_width: u32,
     pub code_font_size: u32,
+    pub code_font_width: u32,
+    pub dpi: u32,
 }
 
 impl LabelLayout {
@@ -26,10 +28,12 @@ impl LabelLayout {
             columns,
             margin_x: 50,
             margin_y: 50,
-            barcode_height: 253,
+            barcode_height: 240,
             barcode_ratio: 3.0,
-            title_font_size: 20,
-            code_font_size: 25,
+            title_font_size: 16,
+            title_font_width: 20,
+            code_font_size: 22,
+            code_font_width: 28,
             dpi,
         }
     }
@@ -97,6 +101,12 @@ mod tests {
         assert_eq!(layout.label_height_dots, 400);
         assert_eq!(layout.columns, 2);
         assert_eq!(layout.dpi, 203);
+        assert_eq!(layout.barcode_height, 240);
+        assert_eq!(layout.barcode_ratio, 3.0);
+        assert_eq!(layout.title_font_size, 16);
+        assert_eq!(layout.title_font_width, 20);
+        assert_eq!(layout.code_font_size, 22);
+        assert_eq!(layout.code_font_width, 28);
     }
 
     #[test]

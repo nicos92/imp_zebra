@@ -28,14 +28,17 @@ The application generates ZPL II (Zebra Programming Language) commands. All ZPL 
 
 ```rust
 pub struct LabelLayout {
-    pub label_width_dots: u32,   // 400 for 5cm at 203 DPI
-    pub label_height_dots: u32,  // 400 for 5cm at 203 DPI
-    pub columns: u32,            // 2
-    pub margin_x: u32,           // 50 dots
-    pub margin_y: u32,           // 50 dots
-    pub barcode_height: u32,     // 253 dots
+    pub label_width_dots: u32,   // per-label width (dots)
+    pub label_height_dots: u32,  // per-label height (dots)
+    pub columns: u32,            // labels per row
+    pub margin_x: u32,           // horizontal margin
+    pub margin_y: u32,           // vertical margin
+    pub barcode_height: u32,     // 240 dots (Zebra Designer)
     pub barcode_ratio: f64,      // 3.0
-    pub title_font_size: u32,    // 20 dots
+    pub title_font_size: u32,    // 16 (fecha alto)
+    pub title_font_width: u32,   // 20 (fecha ancho; > alto = negrita)
+    pub code_font_size: u32,     // 22 (código alto)
+    pub code_font_width: u32,    // 28 (código ancho; > alto = negrita)
     pub dpi: u32,                // 203
 }
 ```
@@ -49,11 +52,15 @@ pub struct LabelLayout {
 | columns | 2 | Two labels per row |
 | margin_x | 50 | ~6mm margin |
 | margin_y | 50 | ~6mm margin |
-| barcode_height | 253 | ~32mm (Zebra Designer 3.163 cm) |
-| title_font_size | 20 | ~2.5mm height |
+| barcode_height | 240 | 30mm (Zebra Designer) |
 | barcode_ratio | 3.0 | Proporción estrecha/ancha |
+| title_font_size | 16 | Fecha alto |
+| title_font_width | 20 | Fecha ancho (negrita) |
+| code_font_size | 22 | Código alto |
+| code_font_width | 28 | Código ancho (negrita) |
 
-**Note:** These are initial approximations. Real calibration may require adjustments per printer. All values are configurable.
+**Note:** To match the real Zebra label (94×49mm roll, 2 columns), configure
+`label_width_mm ≈ 47`, `label_height_mm = 49`, `columns = 2` so the app emits `^PW751` and `^LL392`.
 
 ## 4. Dot Calculations
 
@@ -109,49 +116,69 @@ For 4 labels (Z0000001 to Z0000004) with timestamp "26/08/2026 07:15:32":
 
 ; --- Row 1, Left (Z0000001) ---
 ^FO50,50
-^A@N,20,10
+^A@N,16,20
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO50,90
-^BY3,3,253
+^FO50,86
+^BY3,3,240
 ^BCB,,N,N
+^FDZ0000001
+^FS
+
+^FO50,336
+^A@N,22,28
 ^FDZ0000001
 ^FS
 
 ; --- Row 1, Right (Z0000002) ---
 ^FO450,50
-^A@N,20,10
+^A@N,16,20
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO450,90
-^BY3,3,253
+^FO450,86
+^BY3,3,240
 ^BCB,,N,N
+^FDZ0000002
+^FS
+
+^FO450,336
+^A@N,22,28
 ^FDZ0000002
 ^FS
 
 ; --- Row 2, Left (Z0000003) ---
 ^FO50,450
-^A@N,20,10
+^A@N,16,20
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO50,490
-^BY3,3,253
+^FO50,486
+^BY3,3,240
 ^BCB,,N,N
+^FDZ0000003
+^FS
+
+^FO50,736
+^A@N,22,28
 ^FDZ0000003
 ^FS
 
 ; --- Row 2, Right (Z0000004) ---
 ^FO450,450
-^A@N,20,10
+^A@N,16,20
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO450,490
-^BY3,3,253
+^FO450,486
+^BY3,3,240
 ^BCB,,N,N
+^FDZ0000004
+^FS
+
+^FO450,736
+^A@N,22,28
 ^FDZ0000004
 ^FS
 
@@ -164,17 +191,14 @@ Each label contains:
 
 ```
 ┌──────────────────────┐
-│  26/08/2026 07:15:32 │  ← Title (print timestamp)
+│  26/08/2026 07:15:32 │  ← Título fecha, reducido y en negrita
 │                      │
-│      █████████       │  ← Code 128 barcode (bottom-up)
+│      █████████       │  ← Code 128 barcode (bottom-up, sin texto)
 │      █████████       │
 │      █████████       │
-│                      │
+│      Z0000001        │  ← Código humano en negrita
 └──────────────────────┘
 ```
-
-> **Nota**: no se imprime el código como texto humano debajo del barcode ni en la
-> interpretación del barcode. Se usa únicamente el barcode escaneable.
 
 ### Timestamp format
 - Format: `DD/MM/YYYY HH:MM:SS`
@@ -183,12 +207,15 @@ Each label contains:
 
 ### Barcode
 - Type: Code 128 (`^BC`, orientation `B` bottom-up)
-- Module width: 3 dots (`^BY3,3,253`) = 15 mils
+- Format: `^BY3,3,240` + `^BCB,,N,N` (igual Zebra Designer)
+- Module width: 3 dots = 15 mils
 - Ratio: 3.0
-- Height: 253 dots = 3.163 cm (igual Zebra Designer), configurable en `label_layout.rs`
+- Height: 240 dots = 30 mm, configurable en `label_layout.rs`
 - Interpretación de texto (línea humana): desactivada (`N,N`)
-- Module width: 2 (`^BY2`)
-- Height: 100 dots (configurable)
+
+### Fuentes
+- `^A@N,16,20`: fecha (negrita simulada por ancho > alto)
+- `^A@N,22,28`: código humano debajo del barcode (negrita)
 
 ## 8. Odd Quantity Handling
 
