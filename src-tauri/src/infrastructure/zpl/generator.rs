@@ -53,7 +53,8 @@ impl ZplGenerator {
             zpl.push_str(&format!("^LL{}\n", self.layout.label_height_dots));
 
             for (code, pos) in row_labels {
-                self.append_label(&mut zpl, code, timestamp, *pos);
+                let normalized_pos = LabelPosition { row: 0, column: pos.column };
+                self.append_label(&mut zpl, code, timestamp, normalized_pos);
             }
 
             zpl.push_str("^XZ\n");
