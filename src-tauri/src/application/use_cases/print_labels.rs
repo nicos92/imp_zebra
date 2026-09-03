@@ -76,7 +76,7 @@ impl PrintLabels {
         let labels_with_positions =
             LabelService::new().calculate_positions(&codes, printer.columns);
 
-        let zpl = generator.generate_batch(&labels_with_positions, &timestamp);
+        let batches = generator.generate_batch_by_rows(&labels_with_positions, &timestamp);
 
         job.start_printing().map_err(ApplicationError::Domain)?;
         self.print_job_repository
@@ -85,10 +85,36 @@ impl PrintLabels {
         event!(
             Level::INFO,
             job_id = %job_id,
+            batch_count = batches.len(),
             "print job started"
         );
 
-        match self.transport.send(zpl.as_bytes()).await {
+        let mut send_result = Ok(());
+        for (i, batch) in batches.iter().enumerate() {
+            match self.transport.send(batch.as_bytes()).await {
+                Ok(()) => {
+                    event!(
+                        Level::DEBUG,
+                        job_id = %job_id,
+                        batch_index = i,
+                        "batch sent"
+                    );
+                }
+                Err(e) => {
+                    event!(
+                        Level::ERROR,
+                        job_id = %job_id,
+                        batch_index = i,
+                        error = %e,
+                        "batch send failed"
+                    );
+                    send_result = Err(e);
+                    break;
+                }
+            }
+        }
+
+        match send_result {
             Ok(()) => {
                 job.complete().map_err(ApplicationError::Domain)?;
                 self.print_job_repository

@@ -30,6 +30,39 @@ impl ZplGenerator {
         zpl
     }
 
+    pub fn generate_batch_by_rows(
+        &self,
+        labels: &[(String, LabelPosition)],
+        timestamp: &str,
+    ) -> Vec<String> {
+        if labels.is_empty() {
+            return vec![self.generate_batch(labels, timestamp)];
+        }
+
+        let mut rows: std::collections::BTreeMap<u32, Vec<&(String, LabelPosition)>> =
+            std::collections::BTreeMap::new();
+        for label in labels {
+            rows.entry(label.1.row).or_default().push(label);
+        }
+
+        let mut batches = Vec::with_capacity(rows.len());
+        for (_, row_labels) in rows {
+            let mut zpl = String::with_capacity(512);
+            zpl.push_str("^XA\n");
+            zpl.push_str(&format!("^PW{}\n", self.layout.total_width()));
+            zpl.push_str(&format!("^LL{}\n", self.layout.label_height_dots));
+
+            for (code, pos) in row_labels {
+                self.append_label(&mut zpl, code, timestamp, *pos);
+            }
+
+            zpl.push_str("^XZ\n");
+            batches.push(zpl);
+        }
+
+        batches
+    }
+
     fn append_label(&self, zpl: &mut String, code: &str, timestamp: &str, pos: LabelPosition) {
         let (title_x, title_y) = self.layout.title_position(pos.column, pos.row);
         zpl.push_str(&format!(
@@ -113,5 +146,72 @@ mod tests {
         assert!(zpl.starts_with("^XA"));
         assert!(zpl.ends_with("^XZ\n"));
         assert!(zpl.contains("^LL0"));
+    }
+
+    #[test]
+    fn test_generate_batch_by_rows_single_row() {
+        let generator = ZplGenerator::default();
+        let labels = vec![
+            ("Z0000001".to_string(), LabelPosition { row: 0, column: 0 }),
+            ("Z0000002".to_string(), LabelPosition { row: 0, column: 1 }),
+        ];
+        let batches = generator.generate_batch_by_rows(&labels, "26/08/2026 07:15:32");
+
+        assert_eq!(batches.len(), 1);
+        assert!(batches[0].starts_with("^XA"));
+        assert!(batches[0].ends_with("^XZ\n"));
+        assert!(batches[0].contains("Z0000001"));
+        assert!(batches[0].contains("Z0000002"));
+        assert!(batches[0].contains("^LL400"));
+    }
+
+    #[test]
+    fn test_generate_batch_by_rows_multiple_rows() {
+        let generator = ZplGenerator::default();
+        let labels = vec![
+            ("Z0000001".to_string(), LabelPosition { row: 0, column: 0 }),
+            ("Z0000002".to_string(), LabelPosition { row: 0, column: 1 }),
+            ("Z0000003".to_string(), LabelPosition { row: 1, column: 0 }),
+            ("Z0000004".to_string(), LabelPosition { row: 1, column: 1 }),
+        ];
+        let batches = generator.generate_batch_by_rows(&labels, "26/08/2026 07:15:32");
+
+        assert_eq!(batches.len(), 2);
+        assert!(batches[0].contains("Z0000001"));
+        assert!(batches[0].contains("Z0000002"));
+        assert!(!batches[0].contains("Z0000003"));
+        assert!(!batches[0].contains("Z0000004"));
+        assert!(batches[1].contains("Z0000003"));
+        assert!(batches[1].contains("Z0000004"));
+        assert!(!batches[1].contains("Z0000001"));
+        assert!(!batches[1].contains("Z0000002"));
+    }
+
+    #[test]
+    fn test_generate_batch_by_rows_odd_quantity() {
+        let generator = ZplGenerator::default();
+        let labels = vec![
+            ("Z0000001".to_string(), LabelPosition { row: 0, column: 0 }),
+            ("Z0000002".to_string(), LabelPosition { row: 0, column: 1 }),
+            ("Z0000003".to_string(), LabelPosition { row: 1, column: 0 }),
+        ];
+        let batches = generator.generate_batch_by_rows(&labels, "26/08/2026 07:15:32");
+
+        assert_eq!(batches.len(), 2);
+        assert!(batches[0].contains("Z0000001"));
+        assert!(batches[0].contains("Z0000002"));
+        assert!(batches[1].contains("Z0000003"));
+        assert!(!batches[1].contains("Z0000004"));
+    }
+
+    #[test]
+    fn test_generate_batch_by_rows_empty() {
+        let generator = ZplGenerator::default();
+        let labels = vec![];
+        let batches = generator.generate_batch_by_rows(&labels, "26/08/2026 07:15:32");
+
+        assert_eq!(batches.len(), 1);
+        assert!(batches[0].starts_with("^XA"));
+        assert!(batches[0].ends_with("^XZ\n"));
     }
 }
