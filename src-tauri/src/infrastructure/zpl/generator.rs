@@ -73,7 +73,7 @@ impl ZplGenerator {
 
         let (barcode_x, barcode_y) = self.layout.barcode_position(pos.column, pos.row);
         zpl.push_str(&format!(
-            "^FO{},{}\n^BY2\n^BCN,{},Y,N\n^FD{}\n^FS\n",
+            "^FO{},{}\n^BY3\n^BCN,{},Y,N\n^FD{}\n^FS\n",
             barcode_x, barcode_y, self.layout.barcode_height, code
         ));
 
@@ -105,7 +105,7 @@ mod tests {
         assert!(zpl.ends_with("^XZ\n"));
         assert!(zpl.contains("Z0000001"));
         assert!(zpl.contains("26/08/2026 07:15:32"));
-        assert!(zpl.contains("^BCN"));
+        assert!(zpl.contains("^BCB"));
     }
 
     #[test]

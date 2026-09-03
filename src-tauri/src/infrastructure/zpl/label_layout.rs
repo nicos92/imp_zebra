@@ -12,9 +12,10 @@ pub struct LabelLayout {
     pub margin_x: u32,
     pub margin_y: u32,
     pub barcode_height: u32,
+    pub barcode_ratio: f64,
     pub title_font_size: u32,
-    pub code_font_size: u32,
     pub dpi: u32,
+    pub code_font_size: u32,
 }
 
 impl LabelLayout {
@@ -25,8 +26,9 @@ impl LabelLayout {
             columns,
             margin_x: 50,
             margin_y: 50,
-            barcode_height: 150,
-            title_font_size: 10,
+            barcode_height: 253,
+            barcode_ratio: 3.0,
+            title_font_size: 20,
             code_font_size: 25,
             dpi,
         }

@@ -33,9 +33,9 @@ pub struct LabelLayout {
     pub columns: u32,            // 2
     pub margin_x: u32,           // 50 dots
     pub margin_y: u32,           // 50 dots
-    pub barcode_height: u32,     // 100 dots
-    pub title_font_size: u32,    // 30 dots
-    pub code_font_size: u32,     // 25 dots
+    pub barcode_height: u32,     // 253 dots
+    pub barcode_ratio: f64,      // 3.0
+    pub title_font_size: u32,    // 20 dots
     pub dpi: u32,                // 203
 }
 ```
@@ -49,9 +49,9 @@ pub struct LabelLayout {
 | columns | 2 | Two labels per row |
 | margin_x | 50 | ~6mm margin |
 | margin_y | 50 | ~6mm margin |
-| barcode_height | 100 | ~12mm |
-| title_font_size | 30 | ~3.7mm height |
-| code_font_size | 25 | ~3.1mm height |
+| barcode_height | 253 | ~32mm (Zebra Designer 3.163 cm) |
+| title_font_size | 20 | ~2.5mm height |
+| barcode_ratio | 3.0 | Proporción estrecha/ancha |
 
 **Note:** These are initial approximations. Real calibration may require adjustments per printer. All values are configurable.
 
@@ -109,69 +109,49 @@ For 4 labels (Z0000001 to Z0000004) with timestamp "26/08/2026 07:15:32":
 
 ; --- Row 1, Left (Z0000001) ---
 ^FO50,50
-^A@N,30,30
+^A@N,20,10
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO50,100
-^BY2
-^BCN,100,Y,N
-^FDZ0000001
-^FS
-
-^FO50,220
-^A@N,25,25
+^FO50,90
+^BY3,3,253
+^BCB,,N,N
 ^FDZ0000001
 ^FS
 
 ; --- Row 1, Right (Z0000002) ---
 ^FO450,50
-^A@N,30,30
+^A@N,20,10
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO450,100
-^BY2
-^BCN,100,Y,N
-^FDZ0000002
-^FS
-
-^FO450,220
-^A@N,25,25
+^FO450,90
+^BY3,3,253
+^BCB,,N,N
 ^FDZ0000002
 ^FS
 
 ; --- Row 2, Left (Z0000003) ---
 ^FO50,450
-^A@N,30,30
+^A@N,20,10
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO50,500
-^BY2
-^BCN,100,Y,N
-^FDZ0000003
-^FS
-
-^FO50,620
-^A@N,25,25
+^FO50,490
+^BY3,3,253
+^BCB,,N,N
 ^FDZ0000003
 ^FS
 
 ; --- Row 2, Right (Z0000004) ---
 ^FO450,450
-^A@N,30,30
+^A@N,20,10
 ^FD26/08/2026 07:15:32
 ^FS
 
-^FO450,500
-^BY2
-^BCN,100,Y,N
-^FDZ0000004
-^FS
-
-^FO450,620
-^A@N,25,25
+^FO450,490
+^BY3,3,253
+^BCB,,N,N
 ^FDZ0000004
 ^FS
 
@@ -186,13 +166,15 @@ Each label contains:
 ┌──────────────────────┐
 │  26/08/2026 07:15:32 │  ← Title (print timestamp)
 │                      │
-│      █████████       │  ← Code 128 barcode
+│      █████████       │  ← Code 128 barcode (bottom-up)
 │      █████████       │
 │      █████████       │
 │                      │
-│       Z0000001       │  ← Human-readable code
 └──────────────────────┘
 ```
+
+> **Nota**: no se imprime el código como texto humano debajo del barcode ni en la
+> interpretación del barcode. Se usa únicamente el barcode escaneable.
 
 ### Timestamp format
 - Format: `DD/MM/YYYY HH:MM:SS`
@@ -200,8 +182,11 @@ Each label contains:
 - Generated at print time, not stored
 
 ### Barcode
-- Type: Code 128 (`^BCN`)
-- Orientation: Normal (N)
+- Type: Code 128 (`^BC`, orientation `B` bottom-up)
+- Module width: 3 dots (`^BY3,3,253`) = 15 mils
+- Ratio: 3.0
+- Height: 253 dots = 3.163 cm (igual Zebra Designer), configurable en `label_layout.rs`
+- Interpretación de texto (línea humana): desactivada (`N,N`)
 - Module width: 2 (`^BY2`)
 - Height: 100 dots (configurable)
 
