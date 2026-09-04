@@ -11,7 +11,6 @@ import {
   getCurrentSequence,
   getPrinterConfig,
   savePrinterConfig,
-  testPrinterConnection,
 } from "./printerApi";
 import { commandErrorMessage } from "./tauriClient";
 
@@ -60,15 +59,6 @@ describe("printerApi", () => {
     invokeMock.mockResolvedValueOnce({ id: "printer-1", ...config });
     await savePrinterConfig(config);
     expect(invokeMock).toHaveBeenCalledWith("save_printer_config", { config });
-  });
-
-  it("testPrinterConnection maps printer_id", async () => {
-    invokeMock.mockResolvedValueOnce(true);
-    const ok = await testPrinterConnection("printer-1");
-    expect(invokeMock).toHaveBeenCalledWith("test_printer_connection", {
-      printerId: "printer-1",
-    });
-    expect(ok).toBe(true);
   });
 });
 

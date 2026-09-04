@@ -104,44 +104,4 @@ describe("PrinterSettingsView", () => {
     const message = wrapper.find(".settings__message--error");
     expect(message.text()).toContain("No se pudo guardar la configuración");
   });
-
-  it("persists a brand new printer before testing the connection", async () => {
-    invokeMock.mockResolvedValueOnce(null);
-    invokeMock.mockResolvedValueOnce(sequenceFixture());
-    invokeMock.mockResolvedValueOnce(printerFixture());
-    invokeMock.mockResolvedValueOnce(true);
-
-    const wrapper = await mountView();
-    wrapper.findComponent(PrinterForm).vm.$emit("test", configFixture());
-    await flushPromises();
-
-    expect(invokeMock).toHaveBeenCalledWith("save_printer_config", {
-      config: configFixture(),
-    });
-    expect(invokeMock).toHaveBeenCalledWith("test_printer_connection", {
-      printerId: "printer-1",
-    });
-    expect(wrapper.find("[role='status']").text()).toContain(
-      "Conexión exitosa con la impresora.",
-    );
-    const store = usePrinterStore();
-    expect(store.connected).toBe(true);
-  });
-
-  it("tests an already-persisted printer without saving again", async () => {
-    invokeMock.mockResolvedValueOnce(printerFixture());
-    invokeMock.mockResolvedValueOnce(sequenceFixture());
-    invokeMock.mockResolvedValueOnce(true);
-
-    const wrapper = await mountView();
-    wrapper.findComponent(PrinterForm).vm.$emit("test", configFixture());
-    await flushPromises();
-
-    expect(invokeMock).not.toHaveBeenCalledWith("save_printer_config", {
-      config: configFixture(),
-    });
-    expect(invokeMock).toHaveBeenCalledWith("test_printer_connection", {
-      printerId: "printer-1",
-    });
-  });
 });

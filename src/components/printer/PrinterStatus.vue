@@ -16,8 +16,6 @@ const statusLabel = computed(() => {
       return "Conectada";
     case "disconnected":
       return "Desconectada";
-    case "testing":
-      return "Probando conexión...";
     default:
       return "Desconocido";
   }
@@ -105,11 +103,6 @@ const statusLabel = computed(() => {
 .printer-status__badge--disconnected,
 .printer-status__badge--unknown {
   background: var(--color-muted);
-  color: #fff;
-}
-
-.printer-status__badge--testing {
-  background: var(--color-warning);
   color: #fff;
 }
 

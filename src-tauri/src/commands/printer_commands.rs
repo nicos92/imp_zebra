@@ -7,13 +7,10 @@ use crate::application::use_cases::configure_printer::ConfigurePrinter;
 use crate::application::use_cases::get_configured_printer::GetConfiguredPrinter;
 use crate::application::use_cases::get_current_sequence::GetCurrentSequence;
 use crate::application::use_cases::get_printer_config::GetPrinterConfig;
-use crate::application::use_cases::test_printer::TestPrinter;
 use crate::domain::repositories::printer_repository::PrinterRepository;
 use crate::domain::repositories::sequence_repository::SequenceRepository;
 use crate::domain::services::sequence_service::SequenceService;
 use crate::errors::application_error::ApplicationError;
-use crate::infrastructure::printer::printer_transport::PrinterTransport;
-use crate::infrastructure::printer::tcp_transport::TcpPrinterTransport;
 use crate::state::app_state::AppState;
 
 #[tauri::command]
@@ -42,29 +39,6 @@ pub async fn save_printer_config(
     );
     let use_case = ConfigurePrinter::new(repo);
     use_case.execute(config).await
-}
-
-#[tauri::command]
-pub async fn test_printer_connection(
-    state: State<'_, AppState>,
-    printer_id: String,
-) -> Result<bool, ApplicationError> {
-    let repo: Arc<dyn PrinterRepository> = Arc::new(
-        crate::infrastructure::database::repositories::sqlite_printer_repository::SqlitePrinterRepository::new(
-            (*state.db).clone(),
-        ),
-    );
-
-    let printer = repo
-        .find_by_id(&printer_id)
-        .await?
-        .ok_or(ApplicationError::PrinterNotConfigured)?;
-
-    let transport: Arc<dyn PrinterTransport> =
-        Arc::new(TcpPrinterTransport::new(&printer.ip_address, printer.port));
-
-    let use_case = TestPrinter::new(repo, transport);
-    use_case.execute(&printer_id).await
 }
 
 #[tauri::command]

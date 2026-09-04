@@ -1,8 +1,12 @@
-import type { LabelPreview, PrintJob, PrintRequest, PrintResult } from "../../types";
+import type { LabelPreview, PrintJob, PrintRequest, PrintResult, WindowsPrinter } from "../../types";
 import { invokeCommand } from "./tauriClient";
 
 export function printLabels(request: PrintRequest): Promise<PrintResult> {
   return invokeCommand<PrintResult>("print_labels", { request });
+}
+
+export function listWindowsPrinters(): Promise<WindowsPrinter[]> {
+  return invokeCommand<WindowsPrinter[]>("list_windows_printers");
 }
 
 export function previewLabel(

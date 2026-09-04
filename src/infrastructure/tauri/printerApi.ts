@@ -16,7 +16,3 @@ export function getPrinterConfig(id: string): Promise<Printer | null> {
 export function savePrinterConfig(config: PrinterConfig): Promise<Printer> {
   return invokeCommand<Printer>("save_printer_config", { config });
 }
-
-export function testPrinterConnection(printerId: string): Promise<boolean> {
-  return invokeCommand<boolean>("test_printer_connection", { printerId });
-}

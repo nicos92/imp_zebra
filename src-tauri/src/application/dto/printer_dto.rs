@@ -15,6 +15,12 @@ pub struct PrinterConfigDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WindowsPrinterInfoDto {
+    pub name: String,
+    pub driver_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterDto {
     pub id: String,
     pub name: String,

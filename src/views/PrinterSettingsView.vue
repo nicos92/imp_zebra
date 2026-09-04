@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { usePrinterStore } from "../stores/printer";
-import { savePrinterConfig, testPrinterConnection } from "../infrastructure/tauri/printerApi";
+import { savePrinterConfig } from "../infrastructure/tauri/printerApi";
 import { commandErrorMessage } from "../infrastructure/tauri/tauriClient";
 import type { Printer, PrinterConfig } from "../types";
 import PrinterForm from "../components/printer/PrinterForm.vue";
@@ -10,7 +10,6 @@ const store = usePrinterStore();
 
 const printer = ref<Printer | null>(null);
 const saving = ref(false);
-const testing = ref(false);
 const message = ref<{ type: "success" | "error"; text: string } | null>(null);
 
 async function handleSave(config: PrinterConfig): Promise<void> {
@@ -29,32 +28,6 @@ async function handleSave(config: PrinterConfig): Promise<void> {
   }
 }
 
-async function handleTest(config: PrinterConfig): Promise<void> {
-  testing.value = true;
-  message.value = null;
-  try {
-    const savedId = await persistIfNeeded(config);
-    const ok = await testPrinterConnection(savedId);
-    store.setStatus(ok ? "connected" : "disconnected");
-    message.value = {
-      type: ok ? "success" : "error",
-      text: ok ? "Conexión exitosa con la impresora." : "No se pudo conectar con la impresora.",
-    };
-  } catch (e) {
-    message.value = { type: "error", text: commandErrorMessage(e) };
-  } finally {
-    testing.value = false;
-  }
-}
-
-async function persistIfNeeded(config: PrinterConfig): Promise<string> {
-  if (printer.value?.id) return printer.value.id;
-  const saved = await savePrinterConfig(config);
-  printer.value = saved;
-  store.setPrinter(saved);
-  return saved.id;
-}
-
 onMounted(async () => {
   await store.load();
   printer.value = store.printer;
@@ -68,9 +41,7 @@ onMounted(async () => {
     <PrinterForm
       :initial="printer"
       :submitting="saving"
-      :testing="testing"
       @submit="handleSave"
-      @test="handleTest"
     />
 
     <p

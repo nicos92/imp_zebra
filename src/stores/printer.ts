@@ -4,7 +4,7 @@ import { getConfiguredPrinter, getCurrentSequence } from "../infrastructure/taur
 import { commandErrorMessage } from "../infrastructure/tauri/tauriClient";
 import type { Printer, SequenceInfo } from "../types";
 
-export type PrinterConnectionStatus = "unknown" | "connected" | "disconnected" | "testing";
+export type PrinterConnectionStatus = "unknown" | "connected" | "disconnected";
 
 export const usePrinterStore = defineStore("printer", () => {
   const printer = ref<Printer | null>(null);

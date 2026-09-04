@@ -7,18 +7,16 @@ import AppInput from "../common/AppInput.vue";
 const props = defineProps<{
   initial?: PrinterConfig | null;
   submitting?: boolean;
-  testing?: boolean;
 }>();
 
 const emit = defineEmits<{
   submit: [config: PrinterConfig];
-  test: [config: PrinterConfig];
 }>();
 
 function defaults(): PrinterConfig {
   return {
     name: "",
-    model: "ZT410",
+    model: "",
     dpi: 203,
     label_width_mm: 50,
     label_height_mm: 50,
@@ -48,18 +46,6 @@ function handleSubmit(): void {
 
 <template>
   <form class="printer-form" @submit.prevent="handleSubmit">
-    <AppInput
-      :model-value="form.name"
-      label="Nombre"
-      required
-      @update:model-value="form.name = String($event)"
-    />
-    <AppInput
-      :model-value="form.model"
-      label="Modelo"
-      @update:model-value="form.model = String($event)"
-    />
-
     <div class="printer-form__grid">
       <AppInput
         :model-value="form.dpi"
@@ -93,27 +79,9 @@ function handleSubmit(): void {
         :max="4"
         @update:model-value="form.columns = Number($event)"
       />
-      <AppInput
-        :model-value="form.ip_address"
-        label="Dirección IP"
-        placeholder="192.168.1.100"
-        required
-        @update:model-value="form.ip_address = String($event)"
-      />
-      <AppInput
-        :model-value="form.port"
-        label="Puerto"
-        type="number"
-        :min="1"
-        :max="65535"
-        @update:model-value="form.port = Number($event)"
-      />
     </div>
 
     <div class="printer-form__actions">
-      <AppButton variant="secondary" :loading="testing" @click="emit('test', { ...form })">
-        Probar conexión
-      </AppButton>
       <AppButton type="submit" variant="primary" :loading="submitting"> Guardar </AppButton>
     </div>
   </form>

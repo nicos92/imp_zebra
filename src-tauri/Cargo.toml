@@ -26,6 +26,15 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4"] }
 async-trait = "0.1"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Printing",
+    "Win32_UI_Controls",
+    "Win32_UI_Controls_Dialogs",
+    "Win32_Graphics_Gdi",
+] }
+
 [dev-dependencies]
 tokio-test = "0.4"
 tauri = { version = "2", features = ["test"] }

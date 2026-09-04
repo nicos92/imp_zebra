@@ -17,6 +17,9 @@ pub enum ApplicationError {
 
     #[error("Print job failed: {0}")]
     PrintJobFailed(String),
+
+    #[error("Print cancelled by user")]
+    PrintCancelled,
 }
 
 impl Serialize for ApplicationError {
@@ -37,6 +40,7 @@ impl Serialize for ApplicationError {
             },
             ApplicationError::PrinterNotConfigured => ("PRINTER_NOT_CONFIGURED", self.to_string()),
             ApplicationError::PrintJobFailed(_) => ("PRINT_JOB_FAILED", self.to_string()),
+            ApplicationError::PrintCancelled => ("PRINT_CANCELLED", self.to_string()),
         };
 
         let mut map = std::collections::HashMap::new();

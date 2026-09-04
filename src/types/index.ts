@@ -56,6 +56,11 @@ export interface LabelPreview {
   zpl: string;
 }
 
+export interface WindowsPrinter {
+  name: string;
+  driver_name: string;
+}
+
 export interface TauriError {
   code: string;
   message: string;
